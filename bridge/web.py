@@ -256,7 +256,8 @@ class Manager:
             self.catalog.append({"name": name, "serial": field("serial"), "type": field("camera_type"),
                                  "product": field("product_type"), "online": field("online"),
                                  "firmware": field("version"), "wifi": field("wifi_strength"),
-                                 "battery": field("battery_level"), "temperature": field("temperature_c")})
+                                 "battery": field("battery_level"), "battery_state": field("battery_state"),
+                                 "battery_voltage": field("battery_voltage"), "temperature": field("temperature_c")})
         self.catalog_at = time.time()
         self.extended_entitlement = "unknown"
         with contextlib.suppress(Exception):
@@ -410,7 +411,10 @@ class Manager:
             elif phase == "streaming":
                 phase = "stalled"
             onvif_running = alive(self.processes.get("onvif-" + cam["id"], {}).get("pid"))
-            cloud = next((c for c in self.catalog if c["name"] == cam["name"]), {})
+            matches = [c for c in self.catalog if
+                       (cam.get("serial") and c.get("serial") == cam["serial"]) or
+                       (not cam.get("serial") and c["name"] == cam["name"])]
+            cloud = matches[0] if len(matches) == 1 else {}
             cameras.append(dict(cam, phase=phase, running=running, publishing=publishing, telemetry=stats,
                                 cloud=cloud, onvif_running=onvif_running, device_settings=self.device_settings.get(cam["id"]),
                                 local_url=f"rtsp://127.0.0.1:8554/{cam['path']}",

@@ -93,6 +93,17 @@ def test_camera_identity_survives_edits():
         assert original[field]==updated[field]
 
 
+def test_cloud_metadata_matches_serial_after_local_rename(manager):
+    camera=dashboard.validate_camera({"name":"Local alias", "serial":"ABC", "path":"test"},{})
+    manager.config["cameras"]=[camera]
+    manager.catalog=[{"name":"Cloud name", "serial":"ABC", "wifi":3},
+                     {"name":"Local alias", "serial":"OTHER", "wifi":1}]
+    result=asyncio.run(manager.status())
+    assert result["cameras"][0]["cloud"]["wifi"]==3
+    manager.catalog=manager.catalog[1:]
+    assert asyncio.run(manager.status())["cameras"][0]["cloud"]=={}
+
+
 def test_process_identity_guard(manager, monkeypatch):
     # Never terminate a stale PID pointing at a different program.
     monkeypatch.setattr(dashboard,"alive",lambda pid:True)
