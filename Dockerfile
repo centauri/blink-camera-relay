@@ -5,6 +5,7 @@ RUN npm ci
 COPY vendor/onvif/src ./src
 COPY vendor/onvif/ws-discovery.ts vendor/onvif/tsconfig.json ./
 RUN npx tsc && npm prune --omit=dev
+RUN node -e "fetch('https://raw.githubusercontent.com/nodejs/node/'+process.version+'/LICENSE').then(async r=>{if(!r.ok)throw Error('Node license download failed');require('fs').writeFileSync('/build/NODE-LICENSE',await r.text())})"
 FROM bluenviron/mediamtx:1.21.1 AS media
 FROM python:3.12-slim-bookworm AS runtime
 ENV PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1 BRIDGE_CONTAINER=1 BRIDGE_DATA=/data BRIDGE_RUNTIME=/run/blink
@@ -15,6 +16,7 @@ COPY vendor/blinkpy /opt/blinkpy
 COPY requirements.lock ./
 RUN pip install --no-cache-dir -r requirements.lock /opt/blinkpy
 COPY --from=onvif-build /usr/local/bin/node /usr/local/bin/node
+COPY --from=onvif-build /build/NODE-LICENSE /usr/share/blink-camera-relay/NODE-LICENSE
 COPY --from=onvif-build /build/dist /app/vendor/onvif/dist
 COPY --from=onvif-build /build/node_modules /app/vendor/onvif/node_modules
 COPY --from=media /mediamtx /usr/local/bin/mediamtx
