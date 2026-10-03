@@ -6,9 +6,10 @@ MediaMTX and ONVIF adapter. Blink cloud pairing/login is still required.
 
 ## Unraid
 
-Use [the Unraid template](unraid/blink-camera-relay.xml) with image
+Use [the Unraid template](https://github.com/centauri/unraid-templates/blob/main/templates/blink-camera-relay.xml) with image
 `ghcr.io/centauri/blink-camera-relay:edge`. The container targets linux/amd64.
-The template is provided here; it has not been submitted to Community Apps.
+The authoritative template is maintained in `centauri/unraid-templates`;
+Community Apps approval/listing has not been verified.
 
 - Network: host, for ONVIF multicast discovery.
 - Appdata: `/mnt/user/appdata/blink-camera-relay` mounted at `/data`.
