@@ -44,6 +44,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          target: runtime
+          load: true
+          tags: blink-relay-smoke:local
+      - name: Test worker image and H.264 encoder
+        run: |
+          docker run --rm blink-relay-smoke:local --help
+          docker run --rm --entrypoint ffmpeg blink-relay-smoke:local -hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=15 -t 1 -c:v libx264 -threads 1 -x264-params sliced-threads=0:slices=1 -f null -
       # Sources publish first. Failure prevents publication of the binary image.
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:

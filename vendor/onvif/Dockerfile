@@ -8,6 +8,7 @@ RUN npx tsc --project tsconfig.json
 FROM bluenviron/mediamtx:1.21.1 AS mediamtx
 
 FROM node:22-bookworm-slim AS runtime
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
