@@ -1,0 +1,11 @@
+Blink Camera Relay is an independent, unofficial interoperability project.
+Blink and Amazon are trademarks of their respective owners. UniFi and Protect
+are trademarks of Ubiquiti. ONVIF is a trademark of ONVIF, Inc. Naming products
+here describes compatibility; it does not imply endorsement or certification.
+
+The root MIT license covers this project's original code only. Vendored code
+and container dependencies retain their own licenses and copyright notices.
+See THIRD-PARTY.md and the license files in vendor/.
+
+No camera firmware, APK, decompiled application source, vendor artwork,
+credentials, recordings, or downloaded executable tools are distributed here.

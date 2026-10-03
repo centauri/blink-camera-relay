@@ -1,0 +1,62 @@
+name: blink-protect
+x-bridge: &bridge
+  build:
+    context: .
+    target: runtime
+  image: ${BRIDGE_IMAGE:-blink-camera-relay:local}
+  init: true
+  env_file: .env
+  volumes:
+    - ./data:/data
+  logging:
+    driver: json-file
+    options:
+      max-size: "5m"
+      max-file: "2"
+
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.1
+    restart: unless-stopped
+    ports:
+      - "${UNRAID_IP:?Set the server LAN address in .env}:${RTSP_PORT:-8554}:8554/tcp"
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+
+  bridge:
+    <<: *bridge
+    profiles: [live]
+    # Stop on an auth/config error instead of generating repeated login requests.
+    restart: "no"
+    depends_on: [mediamtx]
+    command: [run]
+    stop_grace_period: 25s
+    healthcheck:
+      test: [CMD, python, /app/app.py, health]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+  auth:
+    <<: *bridge
+    profiles: [tools]
+    command: [auth]
+    stdin_open: true
+    tty: true
+
+  test-source:
+    <<: *bridge
+    profiles: [test]
+    depends_on: [mediamtx]
+    command: [test]
+    restart: on-failure:3
+    healthcheck:
+      test: [CMD, python, /app/app.py, health]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

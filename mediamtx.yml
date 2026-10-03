@@ -1,0 +1,23 @@
+logLevel: info
+rtsp: true
+rtspAddress: :8554
+rtspTransports: [tcp]
+rtmp: false
+hls: false
+webrtc: false
+srt: false
+moq: false
+api: false
+metrics: false
+pprof: false
+# POC on trusted LAN only; anonymous read/publish. Do not port-forward.
+authMethod: internal
+authInternalUsers:
+  - user: any
+    permissions:
+      - action: publish
+      - action: read
+paths:
+  all_others:
+    source: publisher
+    overridePublisher: false

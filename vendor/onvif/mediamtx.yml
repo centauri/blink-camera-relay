@@ -1,0 +1,10 @@
+rtspAddress: :8554
+rtspTransports: [tcp]
+rtmp: false
+hls: false
+webrtc: false
+srt: false
+moq: false
+# Compose sets pathDefaults.source; avoid underscores in dynamic env map keys.
+paths:
+  all_others: {}

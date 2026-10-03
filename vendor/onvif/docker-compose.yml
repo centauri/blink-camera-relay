@@ -1,0 +1,96 @@
+version: "3.8"
+
+networks:
+  onvif:
+    driver: macvlan
+    driver_opts:
+      parent: ${NETWORK_INTERFACE:-eth0}   # eth0 on Pi/Linux, en0 on Mac (requires OrbStack)
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.1
+
+services:
+  cam1:
+    image: eddwills95/onvif-protect-bridge:latest
+    restart: unless-stopped
+    environment:
+      CAMERA_ID: cam1
+      CAMERA_NAME: Patio
+      CAMERA_RTSP_URL: ${CAM1_RTSP_URL}
+      MTX_PATHS_CAM1_SOURCE: ${CAM1_RTSP_URL}
+      RTSP_STREAM_PORT: "8554"
+    networks:
+      onvif:
+        ipv4_address: 192.168.1.101
+        mac_address: "e6:14:3a:8b:84:df"
+
+  cam2:
+    image: eddwills95/onvif-protect-bridge:latest
+    restart: unless-stopped
+    environment:
+      CAMERA_ID: cam2
+      CAMERA_NAME: Front Garden
+      CAMERA_RTSP_URL: ${CAM2_RTSP_URL}
+      MTX_PATHS_CAM2_SOURCE: ${CAM2_RTSP_URL}
+      RTSP_STREAM_PORT: "8554"
+    networks:
+      onvif:
+        ipv4_address: 192.168.1.103
+        mac_address: "e2:ac:50:57:27:fe"
+
+  cam3:
+    image: eddwills95/onvif-protect-bridge:latest
+    restart: unless-stopped
+    environment:
+      CAMERA_ID: cam3
+      CAMERA_NAME: Side Garden
+      CAMERA_RTSP_URL: ${CAM3_RTSP_URL}
+      MTX_PATHS_CAM3_SOURCE: ${CAM3_RTSP_URL}
+      RTSP_STREAM_PORT: "8554"
+    networks:
+      onvif:
+        ipv4_address: 192.168.1.104
+        mac_address: "9e:56:01:3e:fc:e5"
+
+  cam4:
+    image: eddwills95/onvif-protect-bridge:latest
+    restart: unless-stopped
+    environment:
+      CAMERA_ID: cam4
+      CAMERA_NAME: Back Garden
+      CAMERA_RTSP_URL: ${CAM4_RTSP_URL}
+      MTX_PATHS_CAM4_SOURCE: ${CAM4_RTSP_URL}
+      RTSP_STREAM_PORT: "8554"
+    networks:
+      onvif:
+        ipv4_address: 192.168.1.105
+        mac_address: "86:72:e8:a9:e8:01"
+
+  cam5:
+    image: eddwills95/onvif-protect-bridge:latest
+    restart: unless-stopped
+    environment:
+      CAMERA_ID: cam5
+      CAMERA_NAME: Driveway
+      CAMERA_RTSP_URL: ${CAM5_RTSP_URL}
+      MTX_PATHS_CAM5_SOURCE: ${CAM5_RTSP_URL}
+      RTSP_STREAM_PORT: "8554"
+    networks:
+      onvif:
+        ipv4_address: 192.168.1.106
+        mac_address: "7a:2d:dd:97:73:7f"
+
+  cam6:
+    image: eddwills95/onvif-protect-bridge:latest
+    restart: unless-stopped
+    environment:
+      CAMERA_ID: cam6
+      CAMERA_NAME: Front of House
+      CAMERA_RTSP_URL: ${CAM6_RTSP_URL}
+      MTX_PATHS_CAM6_SOURCE: ${CAM6_RTSP_URL}
+      RTSP_STREAM_PORT: "8554"
+    networks:
+      onvif:
+        ipv4_address: 192.168.1.107
+        mac_address: "2a:32:bf:53:05:13"

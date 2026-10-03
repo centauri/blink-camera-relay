@@ -1,0 +1,5 @@
+[run]
+parallel = true
+omit =
+    tests/*
+    setup.py

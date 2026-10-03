@@ -1,0 +1,47 @@
+# Add only after live RTSP works. ONVIF_IP must be reserved and unused.
+services:
+  onvif:
+    build:
+      context: ./vendor/onvif
+    image: ${ONVIF_IMAGE:-blink-camera-relay-onvif:local}
+    restart: unless-stopped
+    init: true
+    depends_on: [mediamtx]
+    environment:
+      DISCOVERY_ENABLED: ${ONVIF_DISCOVERY_ENABLED:-true}
+      CAMERA_ID: ${ONVIF_ID:-blink-mini-poc}
+      CAMERA_NAME: ${ONVIF_NAME:-Blink Mini PoC}
+      CAMERA_UUID: ${ONVIF_UUID}
+      CAMERA_MAC: ${ONVIF_MAC}
+      CAMERA_RTSP_URL: rtsp://mediamtx:8554/${RTSP_PATH:-blink-mini}
+      CAMERA_PORT: "8080"
+      HOST_IP: ${ONVIF_IP:?Set a reserved unused ONVIF_IP in .env}
+      RTSP_HOST: ${ONVIF_IP}
+      RTSP_STREAM_PORT: "8554"
+      MTX_RTSPADDRESS: :8554
+      MTX_RTSPTRANSPORTS: tcp
+      MTX_RTMP: "no"
+      MTX_HLS: "no"
+      MTX_WEBRTC: "no"
+      MTX_SRT: "no"
+      MTX_PATHDEFAULTS_SOURCE: rtsp://mediamtx:8554/${RTSP_PATH:-blink-mini}
+      MTX_PATHDEFAULTS_RTSPTRANSPORT: tcp
+      MTX_PATHDEFAULTS_SOURCEONDEMAND: "yes"
+    networks:
+      default: {}
+      camera_lan:
+        ipv4_address: ${ONVIF_IP}
+        mac_address: ${ONVIF_MAC}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8080/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+
+networks:
+  camera_lan:
+    external: true
+    name: ${UNRAID_LAN_NETWORK:-br0}

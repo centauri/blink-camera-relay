@@ -1,0 +1,15 @@
+**
+!bridge/
+!bridge/**
+!vendor/
+!vendor/blinkpy/
+!vendor/blinkpy/**
+!requirements.lock
+!LICENSE
+!NOTICE
+!THIRD-PARTY.md
+!scripts/
+!scripts/collect-debian-sources.sh
+**/__pycache__/
+**/*.pyc
+**/.git/

@@ -1,0 +1,5 @@
+import { envelope } from "../../utils/envelope";
+export interface GetCapabilitiesParams { host: string; port: number; }
+export function getCapabilities({ host, port }: GetCapabilitiesParams): string {
+  return envelope(`<GetCapabilitiesResponse xmlns="http://www.onvif.org/ver10/device/wsdl" xmlns:tt="http://www.onvif.org/ver10/schema"><Capabilities><tt:Device><tt:XAddr>http://${host}:${port}/onvif/device_service</tt:XAddr><tt:Security><tt:TLS1.1>false</tt:TLS1.1><tt:TLS1.2>false</tt:TLS1.2><tt:OnboardKeyGeneration>false</tt:OnboardKeyGeneration><tt:AccessPolicyConfig>false</tt:AccessPolicyConfig><tt:X.509Token>false</tt:X.509Token><tt:SAMLToken>false</tt:SAMLToken><tt:KerberosToken>false</tt:KerberosToken><tt:RELToken>false</tt:RELToken></tt:Security></tt:Device><tt:Media><tt:XAddr>http://${host}:${port}/onvif/media_service</tt:XAddr><tt:StreamingCapabilities><tt:RTPMulticast>false</tt:RTPMulticast><tt:RTP_TCP>true</tt:RTP_TCP><tt:RTP_RTSP_TCP>true</tt:RTP_RTSP_TCP></tt:StreamingCapabilities></tt:Media></Capabilities></GetCapabilitiesResponse>`);
+}

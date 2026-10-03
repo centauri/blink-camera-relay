@@ -97,4 +97,3 @@ scope of the root license and third-party terms.
 also scans tracked files for prohibited private artifacts. Docker/Actions build
 results must be checked before treating an image as tested. See SECURITY.md for
 network and credential limitations, and CONTRIBUTING.md for development checks.
-
