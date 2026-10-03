@@ -1,5 +1,7 @@
 # Blink Camera Relay
 
+<img src="docs/assets/icon.png" alt="Video relay icon" width="128">
+
 Unofficial Blink live view to RTSP and ONVIF, with web onboarding and camera
 settings. **One container** includes the dashboard, BlinkPy/IMMIS worker, FFmpeg,
 MediaMTX and ONVIF adapter. Blink cloud pairing/login is still required.
@@ -80,3 +82,22 @@ The regression suite has 64 tests. CI also compiles ONVIF, audits npm dependenci
 checks the release files, tests H.264 encoding and boots the integrated dashboard
 with authentication checks. Hardware and Unraid deployment are separate checks.
 See LICENSE, NOTICE, THIRD-PARTY.md and SECURITY.md for scope and attribution.
+
+## Screenshots
+
+These are captures of the real web interface using synthetic demo data. Camera
+identities, network addresses and telemetry are examples, not performance claims.
+No account credentials or personal camera footage are included. Available settings
+depend on the camera model.
+
+### Stream monitor
+
+![Stream monitor with synthetic demo data](docs/screenshots/monitor.jpg)
+
+### Camera controls
+
+![Camera controls with synthetic demo data](docs/screenshots/camera-settings.jpg)
+
+### Onboarding
+
+![Onboarding with synthetic demo data](docs/screenshots/onboarding.jpg)
