@@ -1,6 +1,6 @@
 # Blink Camera Relay
 
-Unofficial Blink live-view → RTSP → ONVIF bridge for UniFi Protect.
+Unofficial Blink live-view Ã¢â€ â€™ RTSP Ã¢â€ â€™ ONVIF bridge for UniFi Protect.
 Uses BlinkPy's authenticated IMMIS livestream; it does not replay motion clips,
 flash firmware, remove cloud dependence, or bypass subscription entitlement.
 
@@ -39,8 +39,8 @@ Open `rtsp://YOUR_SERVER_IP:8554/blink-mini` in VLC using RTSP over TCP.
 For a camera-free test, stop bridge and use the `test` profile's test-source.
 
 After the first successful Actions build, set BRIDGE_IMAGE to
-`ghcr.io/centauri/blink-camera-relay:latest` and ONVIF_IMAGE to
-`ghcr.io/centauri/blink-camera-relay-onvif:latest`, then use `docker compose pull`.
+`ghcr.io/centauri/blink-camera-relay:edge` and ONVIF_IMAGE to
+`ghcr.io/centauri/blink-camera-relay-onvif:edge`, then use `docker compose pull`.
 Private GHCR images require a GitHub login with package-read permission.
 
 For ONVIF, reserve a separate unused LAN IP, generate a unique ONVIF_UUID and
@@ -72,7 +72,7 @@ models/encodings remain read-only. Physical effects are not all verified.
 
 Actions tests Python code and compiles TypeScript, then builds amd64 images.
 Pull requests build without publishing; main pushes publish GHCR images with
-`latest` and immutable `sha-COMMIT` tags. SBOM and provenance are generated.
+`edge` and immutable `sha-COMMIT` tags; version tags publish `latest` plus the version. SBOM and provenance are generated.
 The sources images are published before their corresponding runtime images.
 They contain exact Debian source archives, Debian patches/build rules, package
 versions, checksums and notices, including FFmpeg and its Debian dependencies.
@@ -93,7 +93,9 @@ scope of the root license and third-party terms.
 
 ## Validation
 
-60 Python regression tests passed before release preparation. Release validation
+62 Python regression tests passed before release preparation. Release validation
 also scans tracked files for prohibited private artifacts. Docker/Actions build
 results must be checked before treating an image as tested. See SECURITY.md for
 network and credential limitations, and CONTRIBUTING.md for development checks.
+
+Release-channel separation and nested build-context regression checks were inspired by the maintainer’s WeatherNode deployment practices; no WeatherNode application code is included. Old source images are intentionally not automatically deleted.
