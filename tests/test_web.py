@@ -164,3 +164,27 @@ def test_invalid_brightness_does_not_interrupt_video(manager,monkeypatch):
         asyncio.run(manager.change_device({"id":"test"},{"key":"light_brightness","value":10,"expected":3}))
     manager.stop.assert_not_awaited()
     manager.start_camera.assert_not_awaited()
+
+
+def test_container_requires_password_and_protects_status(manager,monkeypatch):
+    monkeypatch.setattr(dashboard,"CONTAINER",True)
+    monkeypatch.setenv("BRIDGE_ADMIN_PASSWORD","")
+    with pytest.raises(ValueError):dashboard.create_app(manager)
+    monkeypatch.setenv("BRIDGE_ADMIN_PASSWORD","test-password-long")
+    async def check():
+        from aiohttp import BasicAuth
+        async with TestClient(TestServer(dashboard.create_app(manager))) as client:
+            assert (await client.get("/api/status")).status==401
+            response=await client.get("/api/status",auth=BasicAuth("admin","test-password-long"))
+            assert response.status==200
+            token=(await response.json())["csrf"]
+            response=await client.post("/api/refresh",auth=BasicAuth("admin","test-password-long"),headers={"Origin":"http://evil.invalid","X-CSRF-Token":token},json={})
+            assert response.status==403
+    asyncio.run(check())
+
+
+def test_camera_edit_preserves_container_autostart():
+    old=dashboard.validate_camera({"name":"One","path":"one"},{})
+    old.update(autostart=True,onvif_autostart=True)
+    new=dashboard.validate_camera({"name":"One","path":"one"},old)
+    assert new["autostart"] and new["onvif_autostart"]

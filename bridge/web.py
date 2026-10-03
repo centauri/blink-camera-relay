@@ -4,6 +4,7 @@ No cloud credentials, cloud media URLs, or raw cloud errors leave this server.
 Workers outlive the UI so closing the dashboard does not stop Protect.
 """
 import asyncio
+import base64
 import contextlib
 import ctypes
 import ipaddress
@@ -27,8 +28,10 @@ import camera_settings
 from blinkpy import api
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = ROOT / ".runtime"
-DATA = ROOT / "data"
+CONTAINER = os.getenv("BRIDGE_CONTAINER") == "1"
+if CONTAINER:os.umask(0o077)
+RUNTIME = Path(os.getenv("BRIDGE_RUNTIME", str(ROOT / ".runtime")))
+DATA = Path(os.getenv("BRIDGE_DATA", str(ROOT / "data")))
 FLAGS = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 SLUG = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}\Z")
 
@@ -60,7 +63,8 @@ def alive(pid):
             kernel.CloseHandle(ctypes.c_void_p(handle))
     try:
         os.kill(pid, 0)
-        return True
+        stat = Path(f"/proc/{pid}/stat")
+        return not stat.exists() or stat.read_text().rsplit(")", 1)[1].split()[0] != "Z"
     except OSError:
         return False
 
@@ -81,16 +85,17 @@ def validate_camera(value, existing):
             "path": path, "mode": mode, "onvif_port": port,
             "uuid": existing.get("uuid") or str(uuid.uuid4()),
             "mac": existing.get("mac") or "02:" + ":".join(secrets.token_hex(1) for _ in range(5)),
-            "discovery": bool(value.get("discovery", False))}
+            "discovery": bool(value.get("discovery", False)),
+            "autostart": existing.get("autostart",False), "onvif_autostart": existing.get("onvif_autostart",False)}
 
 
 class Manager:
     def __init__(self):
-        RUNTIME.mkdir(exist_ok=True)
-        DATA.mkdir(exist_ok=True)
-        self.config = read_json(DATA / "ui.json", {"host": "127.0.0.1", "cameras": []})
+        RUNTIME.mkdir(parents=True,exist_ok=True)
+        DATA.mkdir(parents=True,exist_ok=True)
+        self.config = read_json(DATA / "ui.json", {"host": os.getenv("BRIDGE_HOST", "127.0.0.1"), "cameras": []})
         self.runtime = read_json(RUNTIME / "ui-runtime.json")
-        self.processes = read_json(RUNTIME / "ui-processes.json")
+        self.processes = {} if CONTAINER else read_json(RUNTIME / "ui-processes.json")
         self.csrf = secrets.token_urlsafe(32)
         self.lock = asyncio.Lock()
         self.session = None
@@ -421,11 +426,23 @@ class Manager:
 
 def create_app(manager=None):
     manager = manager or Manager()
+    admin_password = os.getenv("BRIDGE_ADMIN_PASSWORD", "")
+    if CONTAINER and len(admin_password) < 12:
+        raise ValueError("Set BRIDGE_ADMIN_PASSWORD to at least 12 characters.")
 
     @web.middleware
     async def protect(request, handler):
         expected = f"127.0.0.1:{request.url.port}"  # Bound to loopback, never 0.0.0.0.
-        if request.host not in (expected, f"localhost:{request.url.port}"):
+        allowed = {expected, f"localhost:{request.url.port}"}
+        if CONTAINER:
+            allowed.add(f"{manager.config['host']}:{request.url.port}")
+            try:
+                credentials = base64.b64decode(request.headers.get("Authorization", "").removeprefix("Basic "),validate=True).decode()
+            except (ValueError,UnicodeError):
+                credentials = ""
+            if not secrets.compare_digest(credentials.encode(), ("admin:"+admin_password).encode()):
+                raise web.HTTPUnauthorized(headers={"WWW-Authenticate": 'Basic realm="Blink Camera Relay"'})
+        if request.host not in allowed:
             raise web.HTTPForbidden(text="Invalid host")
         if request.method not in ("GET", "HEAD"):
             if request.headers.get("Origin") not in (f"http://{request.host}", None):
@@ -448,8 +465,22 @@ def create_app(manager=None):
 
     async def startup(app):
         manager.session = ClientSession(timeout=ClientTimeout(total=45))
+        if CONTAINER:
+            for camera in manager.config["cameras"]:
+                try:
+                    if camera.get("autostart"):await manager.start_camera(camera)
+                    if camera.get("onvif_autostart"):await manager.start_onvif(camera)
+                except Exception:
+                    manager.account_message = "A saved service could not start; check the stream status and account."
+
 
     async def cleanup(app):
+        if CONTAINER:
+            for key in list(manager.processes):
+                with contextlib.suppress(Exception):
+                    await manager.stop(key,graceful=key.startswith("source-"))
+            for child in manager.children:
+                if child.poll() is None:child.terminate()
         await manager.session.close()
 
     async def status(request):
@@ -531,6 +562,10 @@ def create_app(manager=None):
                     manager.save()
                 if action in ("onvif-start", "discovery"):
                     await manager.start_onvif(cam)
+                if CONTAINER:
+                    if action in ("start","restart","stop"):cam["autostart"] = action != "stop"
+                    if action in ("onvif-start","onvif-stop"):cam["onvif_autostart"] = action == "onvif-start"
+                    manager.save()
             else:
                 raise InputError("Unknown action.")
         return web.json_response(await manager.status())
@@ -575,4 +610,4 @@ def create_app(manager=None):
 
 if __name__ == "__main__":
     logging.getLogger("blinkpy").setLevel(logging.CRITICAL + 1)
-    web.run_app(create_app(), host="127.0.0.1", port=8787, access_log=None, print=None)
+    web.run_app(create_app(), host="0.0.0.0" if CONTAINER else "127.0.0.1", port=8787, access_log=None, print=None)

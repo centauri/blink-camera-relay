@@ -1,103 +1,81 @@
 # Blink Camera Relay
 
-Unofficial Blink live-view ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ RTSP ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ONVIF bridge for UniFi Protect.
-Uses BlinkPy's authenticated IMMIS livestream; it does not replay motion clips,
-flash firmware, remove cloud dependence, or bypass subscription entitlement.
+Unofficial Blink live view to RTSP and ONVIF, with web onboarding and camera
+settings. **One container** includes the dashboard, BlinkPy/IMMIS worker, FFmpeg,
+MediaMTX and ONVIF adapter. Blink cloud pairing/login is still required.
 
-## Status
+## Unraid
 
-Mini 2K+ live video and Protect adoption have been exercised on Windows.
-Normal sessions still end and require renewal, producing gaps. Other camera
-models are not guaranteed. The Windows dashboard supports onboarding, settings,
-and telemetry. Containers currently provide the command-line streaming worker
-and ONVIF adapter, **not the dashboard**. No unattended CCTV guarantee is made.
+Use [the Unraid template](unraid/blink-camera-relay.xml) with image
+`ghcr.io/centauri/blink-camera-relay:edge`. The container targets linux/amd64.
+The template is provided here; it has not been submitted to Community Apps.
 
-## Docker / Unraid
+- Network: host, for ONVIF multicast discovery.
+- Appdata: `/mnt/user/appdata/blink-camera-relay` mounted at `/data`.
+- `BRIDGE_HOST`: your Unraid server's LAN IPv4 address.
+- `BRIDGE_ADMIN_PASSWORD`: choose at least 12 characters.
+- Web UI: `http://YOUR_SERVER_IP:8787`, username `admin` and that password.
 
-Requires Docker Compose v2 and an x86-64 host. Copy `.env.example` to `.env`,
-replace the documentation-only server IP with your actual LAN address, and
-create a private `data` directory. Pair the camera using Blink's app first.
+Pair the camera in Blink's app first. Open the bridge UI, complete Blink login
+and 2FA, choose a camera and RTSP path, then start its stream and ONVIF service.
+The UI generates each camera's unique ONVIF identity. Enabled services resume
+on container restart. Tokens/settings persist in appdata; process IDs and logs
+are ephemeral. Stop the old Windows bridge before adopting the same camera
+through the new installation. Do not copy its saved process/runtime files.
+
+Use a trusted LAN: dashboard HTTP Basic authentication does not encrypt network
+traffic. RTSP/ONVIF have no enforced client authentication. Do not forward these
+ports to the Internet. For remote administration use a trusted VPN or TLS proxy.
+
+Host ports must be free: TCP 8787 (UI), 8554 (internal source), 8555 (LAN RTSP),
+8080 (default ONVIF, adjustable per camera), and UDP 3702 (discovery).
+VLC can use `rtsp://YOUR_SERVER_IP:8555/CAMERA_ID`; the UI shows the exact URL.
+
+## Compose alternative
+
+Copy `.env.example` to `.env`, fill the LAN IP/password, and run:
 
 ```sh
 mkdir -p data
 chmod 700 data
-cp .env.example .env
-# Edit .env before starting services.
-docker compose --profile tools build auth
-docker compose run --rm auth
-docker compose run --rm auth list
+docker compose up -d
 ```
 
-Set BLINK_CAMERA_NAME or BLINK_CAMERA_SERIAL, and RTSP_PATH in `.env`.
-The auth command prompts for credentials and 2FA; account state stays in data/.
+No separate MediaMTX or ONVIF containers are needed. For a local build use
+`docker compose up -d --build`. Shutdown allows up to 90 seconds for cleanup.
+An optional independently verified IMMIS certificate pin can be passed using
+`BLINK_IMMIS_CERT_SHA256`; normal TLS verification remains enabled.
 
-```sh
-docker compose --profile live up -d mediamtx bridge
-```
+## Windows
 
-Open `rtsp://YOUR_SERVER_IP:8554/blink-mini` in VLC using RTSP over TCP.
-For a camera-free test, stop bridge and use the `test` profile's test-source.
+The native Windows dashboard still works: install Python 3.12+, Node 22+,
+FFmpeg and MediaMTX, create `.venv`, install `requirements.lock` and
+`./vendor/blinkpy`, run `npm ci --prefix vendor/onvif` and compile TypeScript,
+then run `Start-Dashboard.ps1`. Native mode stays loopback-only.
 
-After the first successful Actions build, set BRIDGE_IMAGE to
-`ghcr.io/centauri/blink-camera-relay:edge` and ONVIF_IMAGE to
-`ghcr.io/centauri/blink-camera-relay-onvif:edge`, then use `docker compose pull`.
-Private GHCR images require a GitHub login with package-read permission.
+## Builds and dependency sources
 
-For ONVIF, reserve a separate unused LAN IP, generate a unique ONVIF_UUID and
-locally administered ONVIF_MAC, and set the existing Unraid LAN network name.
-Then add `-f compose.yaml -f compose.onvif.yaml` to Compose commands. macvlan/LAN
-multicast requires host-specific setup; Docker Desktop networking is not an
-Unraid substitute. Do not expose these unauthenticated camera ports publicly.
+GitHub Actions publishes just `ghcr.io/centauri/blink-camera-relay`.
+Main builds use `edge`; version tags publish `latest` and their version. Every
+build also has a `sha-COMMIT` tag. Inline attestations are disabled to avoid
+GHCR's non-runnable `unknown/unknown` platform entries. ARM is not yet built.
 
-## Windows dashboard
+Matching Debian dependency sources, patches/build rules, notices and checksums
+are downloadable under Releases, in `sources-COMMIT`. These are archives, not
+container images or services. The image label `io.blink-camera-relay.sources`
+links to its exact archive. Sources publish before the runtime image; keep them
+available for as long as the matching binaries are distributed. Previously
+published standalone/source-image packages are legacy and are no longer built.
 
-Install Python 3.12+, Node.js 22+, FFmpeg and MediaMTX from their official sources.
-Make ffmpeg, mediamtx and node available on PATH. Then:
+## Limits and validation
 
-```powershell
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.lock ./vendor/blinkpy
-npm ci --prefix vendor/onvif
-npx --prefix vendor/onvif tsc --project vendor/onvif/tsconfig.json
-.\Start-Dashboard.ps1
-```
+Mini 2K+ live streaming and Protect adoption have been exercised on Windows.
+Cloud session renewals can cause gaps; other camera models and uninterrupted
+recording are not guaranteed. No firmware modifications or entitlement bypass
+are included. Settings are capability-gated and read back; not every physical
+setting effect is verified.
 
-The dashboard is at http://127.0.0.1:8787. It guides sign-in, 2FA, camera selection
-and local stream setup. Secrets remain on this computer. Worker processes outlive
-the browser/dashboard; stop streams using the UI before shutting down services.
-Camera settings use strict types, mapped ranges and read-back checks. Untested
-models/encodings remain read-only. Physical effects are not all verified.
-
-## Builds and source availability
-
-Actions tests Python code and compiles TypeScript, then builds amd64 images.
-Pull requests build without publishing; main pushes publish GHCR images with
-`edge` and immutable `sha-COMMIT` tags; version tags publish `latest` plus the version. Inline SBOM and provenance attestations are disabled to avoid GHCR showing
-non-runnable `unknown/unknown` platform entries (the same approach as WeatherNode
-PR #8). This does not add ARM support: current images target linux/amd64 only.
-The sources images are published before their corresponding runtime images.
-They contain exact Debian source archives, Debian patches/build rules, package
-versions, checksums and notices, including FFmpeg and its Debian dependencies.
-
-To extract corresponding sources (use the exact runtime commit tag):
-
-```sh
-docker pull ghcr.io/centauri/blink-camera-relay-sources:sha-COMMIT
-id=$(docker create ghcr.io/centauri/blink-camera-relay-sources:sha-COMMIT /unused)
-docker cp "$id:/sources" ./corresponding-sources
-docker rm "$id"
-```
-
-The ONVIF companion is `blink-camera-relay-onvif-sources:sha-COMMIT`.
-Retain source images for as long as their binary tags are distributed. A rebuild
-must publish matching source images too. See THIRD-PARTY.md and NOTICE for the
-scope of the root license and third-party terms.
-
-## Validation
-
-62 Python regression tests passed before release preparation. Release validation
-also scans tracked files for prohibited private artifacts. Docker/Actions build
-results must be checked before treating an image as tested. See SECURITY.md for
-network and credential limitations, and CONTRIBUTING.md for development checks.
-
-Release-channel separation and nested build-context regression checks were inspired by the maintainerâ€™s WeatherNode deployment practices; no WeatherNode application code is included. Old source images are intentionally not automatically deleted.
+The regression suite has 64 tests. CI also compiles ONVIF, audits npm dependencies,
+checks the release files, tests H.264 encoding and boots the integrated dashboard
+with authentication checks. Hardware and Unraid deployment are separate checks.
+See LICENSE, NOTICE, THIRD-PARTY.md and SECURITY.md for scope and attribution.

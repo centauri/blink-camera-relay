@@ -2,6 +2,8 @@
 !bridge/
 !bridge/**
 !vendor/
+!vendor/onvif/
+!vendor/onvif/**
 !vendor/blinkpy/
 !vendor/blinkpy/**
 !requirements.lock
@@ -23,3 +25,5 @@
 **/*.log
 **/*.pem
 **/*.key
+**/node_modules/
+**/dist/

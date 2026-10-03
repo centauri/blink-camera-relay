@@ -1,62 +1,21 @@
-name: blink-protect
-x-bridge: &bridge
-  build:
-    context: .
-    target: runtime
-  image: ${BRIDGE_IMAGE:-blink-camera-relay:local}
-  init: true
-  env_file: .env
-  volumes:
-    - ./data:/data
-  logging:
-    driver: json-file
-    options:
-      max-size: "5m"
-      max-file: "2"
-
+name: blink-camera-relay
 services:
-  mediamtx:
-    image: bluenviron/mediamtx:1.21.1
+  relay:
+    image: ${BRIDGE_IMAGE:-ghcr.io/centauri/blink-camera-relay:edge}
+    build:
+      context: .
+      target: runtime
+    network_mode: host
     restart: unless-stopped
-    ports:
-      - "${UNRAID_IP:?Set the server LAN address in .env}:${RTSP_PORT:-8554}:8554/tcp"
+    stop_grace_period: 90s
+    environment:
+      BRIDGE_HOST: ${BRIDGE_HOST:?Set the server LAN IPv4 address}
+      BRIDGE_ADMIN_PASSWORD: ${BRIDGE_ADMIN_PASSWORD:?Set a dashboard password of at least 12 characters}
+      BLINK_IMMIS_CERT_SHA256: ${BLINK_IMMIS_CERT_SHA256:-}
     volumes:
-      - ./mediamtx.yml:/mediamtx.yml:ro
+      - ${APPDATA_PATH:-./data}:/data
+    tmpfs:
+      - /run/blink:mode=0700
     logging:
       driver: json-file
       options: {max-size: "5m", max-file: "2"}
-
-  bridge:
-    <<: *bridge
-    profiles: [live]
-    # Stop on an auth/config error instead of generating repeated login requests.
-    restart: "no"
-    depends_on: [mediamtx]
-    command: [run]
-    stop_grace_period: 25s
-    healthcheck:
-      test: [CMD, python, /app/app.py, health]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 45s
-
-  auth:
-    <<: *bridge
-    profiles: [tools]
-    command: [auth]
-    stdin_open: true
-    tty: true
-
-  test-source:
-    <<: *bridge
-    profiles: [test]
-    depends_on: [mediamtx]
-    command: [test]
-    restart: on-failure:3
-    healthcheck:
-      test: [CMD, python, /app/app.py, health]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 20s

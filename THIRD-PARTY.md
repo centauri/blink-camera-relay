@@ -7,7 +7,7 @@ Upstream revisions inspected 2026-10-02. Local adaptations are maintained in thi
 | BlinkPy | [fronzbot/blinkpy](https://github.com/fronzbot/blinkpy/tree/c36646ea0c838db04f48ea10a8cae2493dbb8cc6), dev commit `c36646ea0c838db04f48ea10a8cae2493dbb8cc6` | Source vendored under `vendor/blinkpy`, MIT license preserved. Uses OAuth v2 and `camera.init_livestream()`. |
 | ONVIF bridge | [EddWills95/onvif-protect-bridge](https://github.com/EddWills95/onvif-protect-bridge/tree/84eb306f39978a83d3d60ee3ed63dfacd51a603e), commit `84eb306f39978a83d3d60ee3ed63dfacd51a603e` | Source vendored under `vendor/onvif`, local changes listed below. Upstream README declares MIT; the fetched tree contains no separate LICENSE file. Preserve upstream attribution when redistributing. |
 | MediaMTX | [bluenviron/mediamtx v1.21.1](https://github.com/bluenviron/mediamtx/releases/tag/v1.21.1) | Pinned Docker tag, standalone binary used in local tests. |
-| FFmpeg | Debian bookworm package in Docker; imageio-ffmpeg bundled binary in Windows tests | No executable tools are committed to Git. Container images include Debian FFmpeg; corresponding Debian sources are distributed in the matching sources image. |
+| FFmpeg | Debian bookworm package in Docker; imageio-ffmpeg bundled binary in Windows tests | No executable tools are committed to Git. Container images include Debian FFmpeg; corresponding Debian sources are distributed in the matching release source archive. |
 
 BlinkPy's current source uses `read(9)` and `read(payload_length)`, which do not guarantee whole TCP frames. Open upstream PRs [#1232](https://github.com/fronzbot/blinkpy/pull/1232), [#1303](https://github.com/fronzbot/blinkpy/pull/1303) and [#1304](https://github.com/fronzbot/blinkpy/pull/1304) address related streaming work. This POC does not install an unmerged PR wholesale.
 
@@ -32,8 +32,10 @@ license metadata remains in installed packages; SBOMs enumerate dependencies.
 FFmpeg with Debian's x264 support includes GPL components. It runs as a separate
 executable; the root MIT license does not relicense FFmpeg or its dependencies.
 Matching Debian source-package archives and package notices are delivered in
-companion sources images before runtime publication. The inherited Python and
+companion release archives before runtime publication. The inherited Python and
 Node runtime distributions retain their own licenses. This inventory is not a
 legal opinion or a claim of trademark/ONVIF certification.
 
 Release preparation removed unused semantic-release dependencies, updated the ONVIF npm lockfile with npm audit fix (zero reported vulnerabilities), switched its base to Debian for matching source-package collection, and added license notices.
+
+The integrated image includes the dashboard, Python worker, FFmpeg, Node.js, MediaMTX and ONVIF adapter. Matching Debian dependency sources now ship as release downloads, not separate GHCR packages. Legacy source packages remain available for earlier images.

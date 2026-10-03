@@ -30,8 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
-      contents: read
       packages: write
+      contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
@@ -61,21 +61,40 @@ jobs:
           sbom: false
           load: true
           tags: blink-relay-smoke:local
-      - name: Test worker image and H.264 encoder
+      - name: Smoke test the integrated container
         run: |
-          docker run --rm blink-relay-smoke:local --help
-          docker run --rm --entrypoint ffmpeg blink-relay-smoke:local -hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=15 -t 1 -c:v libx264 -threads 1 -x264-params sliced-threads=0:slices=1 -f null -
-      # Sources publish first. Failure prevents publication of the binary image.
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+          docker run --rm blink-relay-smoke:local python /app/bridge/app.py --help
+          docker run --rm blink-relay-smoke:local node --version
+          docker run --rm blink-relay-smoke:local mediamtx --version
+          docker run --rm blink-relay-smoke:local ffmpeg -hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=15 -t 1 -c:v libx264 -threads 1 -x264-params sliced-threads=0:slices=1 -f null -
+          docker run -d --name relay-smoke -p 127.0.0.1:8787:8787 -e BRIDGE_ADMIN_PASSWORD=ci-only-test-password blink-relay-smoke:local
+          trap 'docker logs relay-smoke; docker rm -f relay-smoke' EXIT
+          for i in $(seq 1 30); do
+            if curl --fail --silent -u admin:ci-only-test-password http://127.0.0.1:8787/api/status > /tmp/status.json; then break; fi
+            sleep 1
+          done
+          python -c "import json; s=json.load(open('/tmp/status.json')); assert all(s['runtime'].values())"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/status)" = 401
+      - name: Export matching dependency sources
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: .
           target: sources
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.names.outputs.base }}-sources:sha-${{ github.sha }}
+          outputs: type=local,dest=source-dist
           provenance: false
           sbom: false
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+      - name: Publish source archive before the image
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd source-dist
+          sha256sum corresponding-sources.tar.gz > corresponding-sources.tar.gz.sha256
+          tag="sources-${GITHUB_SHA}"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --title "Dependency sources ${GITHUB_SHA}" --notes "Matching dependency source archives for container sha-${GITHUB_SHA}. Download only; not a runnable application. Retain alongside the corresponding image."
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" corresponding-sources.tar.gz corresponding-sources.tar.gz.sha256 --clobber
+      - name: Publish the single Unraid image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: .
           target: runtime
@@ -89,29 +108,6 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=MIT
-            io.blink-camera-relay.sources=${{ steps.names.outputs.base }}-sources:sha-${{ github.sha }}
-          provenance: false
-          sbom: false
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: vendor/onvif
-          platforms: linux/amd64
-          target: sources
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.names.outputs.base }}-onvif-sources:sha-${{ github.sha }}
-          provenance: false
-          sbom: false
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: vendor/onvif
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ steps.names.outputs.base }}-onvif:${{ steps.names.outputs.channel }}
-            ${{ steps.names.outputs.base }}-onvif:sha-${{ github.sha }}
-            ${{ startsWith(github.ref, 'refs/tags/v') && format('{0}-onvif:{1}', steps.names.outputs.base, github.ref_name) || '' }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            io.blink-camera-relay.sources=https://github.com/${{ github.repository }}/releases/tag/sources-${{ github.sha }}
           provenance: false
           sbom: false

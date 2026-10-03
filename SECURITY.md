@@ -1,7 +1,8 @@
 # Security
 
-Do not expose this proof of concept to the public Internet. The dashboard binds
-to loopback; RTSP and the ONVIF adapter currently have no enforced client
+Do not expose this proof of concept to the public Internet. The native Windows dashboard binds
+to loopback. Container mode listens on the LAN and requires an admin password;
+HTTP Basic credentials are not encrypted without TLS or a VPN. RTSP and the ONVIF adapter currently have no enforced client
 credentials. Protect adoption accepting a username/password does not establish
 that the adapter authenticates them. Use a trusted, isolated camera network.
 
