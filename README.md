@@ -1,6 +1,6 @@
 # Blink Camera Relay
 
-Unofficial Blink live-view Ã¢â€ â€™ RTSP Ã¢â€ â€™ ONVIF bridge for UniFi Protect.
+Unofficial Blink live-view ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ RTSP ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ONVIF bridge for UniFi Protect.
 Uses BlinkPy's authenticated IMMIS livestream; it does not replay motion clips,
 flash firmware, remove cloud dependence, or bypass subscription entitlement.
 
@@ -72,7 +72,9 @@ models/encodings remain read-only. Physical effects are not all verified.
 
 Actions tests Python code and compiles TypeScript, then builds amd64 images.
 Pull requests build without publishing; main pushes publish GHCR images with
-`edge` and immutable `sha-COMMIT` tags; version tags publish `latest` plus the version. SBOM and provenance are generated.
+`edge` and immutable `sha-COMMIT` tags; version tags publish `latest` plus the version. Inline SBOM and provenance attestations are disabled to avoid GHCR showing
+non-runnable `unknown/unknown` platform entries (the same approach as WeatherNode
+PR #8). This does not add ARM support: current images target linux/amd64 only.
 The sources images are published before their corresponding runtime images.
 They contain exact Debian source archives, Debian patches/build rules, package
 versions, checksums and notices, including FFmpeg and its Debian dependencies.
@@ -98,4 +100,4 @@ also scans tracked files for prohibited private artifacts. Docker/Actions build
 results must be checked before treating an image as tested. See SECURITY.md for
 network and credential limitations, and CONTRIBUTING.md for development checks.
 
-Release-channel separation and nested build-context regression checks were inspired by the maintainer’s WeatherNode deployment practices; no WeatherNode application code is included. Old source images are intentionally not automatically deleted.
+Release-channel separation and nested build-context regression checks were inspired by the maintainerâ€™s WeatherNode deployment practices; no WeatherNode application code is included. Old source images are intentionally not automatically deleted.
