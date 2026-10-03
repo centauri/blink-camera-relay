@@ -74,6 +74,7 @@ jobs:
             sleep 1
           done
           python -c "import json; s=json.load(open('/tmp/status.json')); assert all(s['runtime'].values())"
+          python tests/container_smoke.py
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/status)" = 401
       - name: Export matching dependency sources
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
