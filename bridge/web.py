@@ -25,6 +25,7 @@ from blinkpy.auth import Auth, BlinkTwoFARequiredError
 from blinkpy.blinkpy import Blink
 from app import atomic_json
 import camera_settings
+import preview
 from blinkpy import api
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -78,7 +79,7 @@ def validate_camera(value, existing):
     if mode not in ("normal", "extended"):
         raise InputError("Choose normal or extended live view.")
     port = int(value.get("onvif_port", 8080))
-    if not 1024 <= port <= 65535 or port in (8554, 8555, 8787):
+    if not 1024 <= port <= 65535 or port in (8554, 8555, 8787, 8898):
         raise InputError("Choose an unused ONVIF port between 1024 and 65535.")
     camera_id = existing.get("id") or uuid.uuid4().hex[:12]
     return {"id": camera_id, "name": name, "serial": str(value.get("serial", ""))[:100],
@@ -462,7 +463,7 @@ def create_app(manager=None):
         except Exception:
             response = web.json_response({"error": "The operation failed. Check connectivity or refresh the account; no credentials were logged."}, status=500)
         response.headers.update({"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
-            "Content-Security-Policy": "default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
+            "Content-Security-Policy": "default-src 'self'; img-src 'self' blob:; media-src 'self' blob:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
         return response
 
     app = web.Application(middlewares=[protect], client_max_size=16384)
@@ -496,7 +497,13 @@ def create_app(manager=None):
         if manager.lock.locked():
             return web.json_response({"error": "Another operation is in progress. Please wait."}, status=409)
         async with manager.lock:
-            if action == "login":
+            if action == "preview-start":
+                cam = manager.camera(data["id"])
+                status = await manager.status()
+                if not next(c for c in status["cameras"] if c["id"] == cam["id"])["publishing"]:
+                    raise InputError("Start the bridge stream before watching live.")
+                await preview.start(manager, RUNTIME)
+            elif action == "login":
                 if any(alive(v.get("pid")) for k,v in manager.processes.items() if k.startswith("source-")):
                     raise InputError("Stop camera streams before replacing the Blink account. ONVIF can stay running.")
                 username, password = str(data.get("email", "")).strip(), data.get("password", "")
@@ -608,6 +615,7 @@ def create_app(manager=None):
     app.router.add_get("/api/status", status)
     app.router.add_post("/api/{action}", action)
     app.router.add_get("/api/snapshot/{id}", snapshot)
+    preview.install(app, manager)
     app.router.add_static("/static/", ROOT / "bridge/static")
     return app
 

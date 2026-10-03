@@ -101,3 +101,16 @@ depend on the camera model.
 ### Onboarding
 
 ![Onboarding with synthetic demo data](docs/screenshots/onboarding.jpg)
+
+## Browser live preview
+
+Start the bridge stream, then choose **Watch live** in Monitor. The preview reads
+the existing RTSP stream through MediaMTX HLS; it does not start another Blink
+session. It has a few seconds of buffering and still encounters Blink renewal
+gaps. **Stop preview**, switching cameras/tabs, or hiding the browser tab stops
+playback. Capture frame remains available.
+
+The player is bundled locally (no CDN). HLS is proxied through the dashboard login
+and port 8787; its internal listener uses loopback TCP 8898 (must be free). No
+additional LAN port or container is required. Safari uses native HLS where needed;
+other compatible browsers use hls.js. Video has no audio, matching the RTSP feed.

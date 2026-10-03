@@ -39,3 +39,7 @@ legal opinion or a claim of trademark/ONVIF certification.
 Release preparation removed unused semantic-release dependencies, updated the ONVIF npm lockfile with npm audit fix (zero reported vulnerabilities), switched its base to Debian for matching source-package collection, and added license notices.
 
 The integrated image includes the dashboard, Python worker, FFmpeg, Node.js, MediaMTX and ONVIF adapter. Matching Debian dependency sources now ship as release downloads, not separate GHCR packages. Legacy source packages remain available for earlier images.
+
+## Browser live preview
+
+hls.js 1.7.3 (Apache-2.0), bundled from the official npm package. License and package provenance are retained in `bridge/static/vendor/hls.LICENSE` and `hls-source.json`. MediaMTX remuxes existing RTSP video into HLS without opening another Blink session.
