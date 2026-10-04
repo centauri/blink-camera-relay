@@ -24,6 +24,7 @@
 **/*.sqlite-shm
 **/*.log
 **/*.pem
+!bridge/certificates/blink-immis.pem
 **/*.key
 **/node_modules/
 **/dist/

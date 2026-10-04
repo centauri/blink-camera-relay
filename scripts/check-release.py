@@ -7,6 +7,8 @@ import subprocess
 
 files=subprocess.check_output(["git","ls-files","-z"]).decode().split("\0")
 errors=[]
+if "bridge/certificates/blink-immis.pem" not in files:
+    errors.append("Missing bundled public IMMIS certificate")
 for name in filter(None,files):
     p=Path(name)
     if any(part in {"data",".runtime",".venv","node_modules","__pycache__","tools","work"} for part in p.parts):
