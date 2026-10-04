@@ -12,6 +12,8 @@
 !THIRD-PARTY.md
 !scripts/
 !scripts/collect-debian-sources.sh
+**/*.pem
+!bridge/certificates/blink-immis.pem
 **/__pycache__/
 **/*.pyc
 **/.git/
@@ -23,8 +25,6 @@
 **/*.sqlite-wal
 **/*.sqlite-shm
 **/*.log
-**/*.pem
-!bridge/certificates/blink-immis.pem
 **/*.key
 **/node_modules/
 **/dist/
