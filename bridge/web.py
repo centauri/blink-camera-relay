@@ -41,6 +41,23 @@ class InputError(ValueError):
     """A user-facing message authored by this application, never a cloud error."""
 
 
+def immis_certificate_pin():
+    """Prefer explicit configuration, then persistent data, then legacy runtime."""
+    pin = os.getenv("BLINK_IMMIS_CERT_SHA256", "").strip()
+    if not pin:
+        for directory in (DATA, RUNTIME):
+            path = directory / "immis-cert.sha256"
+            if path.exists():
+                pin = path.read_text(encoding="utf-8-sig").strip()
+                if not pin:
+                    raise InputError("IMMIS certificate fingerprint file is empty.")
+                break
+    pin = pin.lower().replace(":", "")
+    if pin and not re.fullmatch(r"[0-9a-f]{64}", pin):
+        raise InputError("IMMIS certificate fingerprint must contain 64 hexadecimal characters.")
+    return pin
+
+
 def read_json(path, default=None):
     try:
         return json.loads(path.read_text(encoding="utf-8-sig"))
@@ -208,6 +225,7 @@ class Manager:
             raise InputError("Camera is already running.")
         if not (DATA / "auth.json").exists():
             raise InputError("Connect your Blink account first.")
+        pin = immis_certificate_pin()
         await self.infrastructure()
         stop = RUNTIME / (key + ".stop")
         stop.unlink(missing_ok=True)
@@ -218,9 +236,7 @@ class Manager:
                    RTSP_PATH=camera["path"], BLINK_LIVEVIEW_MODE=camera["mode"], SESSION_SECONDS="0",
                    BRIDGE_STOP_FILE=str(stop), BRIDGE_HEALTH=str(RUNTIME / (key + "-health.json")),
                    BRIDGE_TELEMETRY=str(telemetry), FFMPEG=self.runtime.get("ffmpeg", "ffmpeg"))
-        pin = RUNTIME / "immis-cert.sha256"
-        if pin.exists():
-            env["BLINK_IMMIS_CERT_SHA256"] = pin.read_text().strip()
+        env["BLINK_IMMIS_CERT_SHA256"] = pin
         self.spawn(key, [sys.executable, str(ROOT / "bridge/app.py"), "run"], env)
         self.processes[key]["stop_file"] = str(stop)
         self.processes[key]["health"] = env["BRIDGE_HEALTH"]

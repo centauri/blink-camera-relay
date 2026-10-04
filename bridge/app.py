@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import ssl
 import sys
 import time
 import traceback
@@ -290,6 +291,11 @@ async def run(command):
                 raise SetupRequired("Camera returned a non-IMMIS stream; model needs an adapter.") from None
             except Exception as error:
                 # Avoid printing server URLs, tokens, or raw Blink API responses.
+                if isinstance(error, ssl.SSLCertVerificationError):
+                    message = ("Blink video server certificate verification failed. "
+                               "Configure an independently verified BLINK_IMMIS_CERT_SHA256 fingerprint.")
+                    LOG.warning(message)
+                    telemetry.event(message)
                 LOG.warning("Live session ended after %.1f seconds (%s)",
                             time.monotonic() - started, type(error).__name__)
                 LOG.info("Failure location: %s", " -> ".join(

@@ -19,6 +19,27 @@ def manager(tmp_path, monkeypatch):
     return dashboard.Manager()
 
 
+def test_certificate_pin_persistence_and_precedence(manager, monkeypatch):
+    monkeypatch.delenv("BLINK_IMMIS_CERT_SHA256", raising=False)
+    assert dashboard.immis_certificate_pin() == ""
+    legacy = dashboard.RUNTIME / "immis-cert.sha256"
+    legacy.write_text("a" * 64, encoding="utf-8")
+    assert dashboard.immis_certificate_pin() == "a" * 64
+    persistent = dashboard.DATA / "immis-cert.sha256"
+    persistent.write_text("b" * 64, encoding="utf-8")
+    legacy.unlink()
+    assert dashboard.immis_certificate_pin() == "b" * 64
+    monkeypatch.setenv("BLINK_IMMIS_CERT_SHA256", ":".join(["CC"] * 32))
+    assert dashboard.immis_certificate_pin() == "c" * 64
+    monkeypatch.setenv("BLINK_IMMIS_CERT_SHA256", "invalid")
+    with pytest.raises(dashboard.InputError):
+        dashboard.immis_certificate_pin()
+    monkeypatch.delenv("BLINK_IMMIS_CERT_SHA256")
+    persistent.write_text("", encoding="utf-8")
+    with pytest.raises(dashboard.InputError):
+        dashboard.immis_certificate_pin()
+
+
 def test_ui_security_and_validation(manager):
     async def check():
         async with TestClient(TestServer(dashboard.create_app(manager))) as client:

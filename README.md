@@ -47,7 +47,19 @@ docker compose up -d
 No separate MediaMTX or ONVIF containers are needed. For a local build use
 `docker compose up -d --build`. Shutdown allows up to 90 seconds for cleanup.
 An optional independently verified IMMIS certificate pin can be passed using
-`BLINK_IMMIS_CERT_SHA256`; normal TLS verification remains enabled.
+`BLINK_IMMIS_CERT_SHA256`, or stored in `/data/immis-cert.sha256` on the persistent
+appdata volume. The environment variable takes precedence. Without a pin, the
+bridge uses normal CA and hostname verification. With a pin, it instead requires
+an exact SHA-256 match of the server certificate before sending stream credentials;
+a mismatch rejects the connection. Never copy an unverified fingerprint from a
+failed connection. Legacy native installs can still use `.runtime/immis-cert.sha256`.
+
+If logs show `SSLCertVerificationError` immediately after opening a live session,
+the video server certificate was rejected before media could arrive. When migrating
+an existing installation that uses a verified pin, migrate that pin too. On Unraid,
+edit the container and add the variable `BLINK_IMMIS_CERT_SHA256` with the verified
+64-character fingerprint, apply the change, then start the camera stream. Pins can
+require replacement if the server certificate changes; verify replacements independently.
 
 ## Windows
 
