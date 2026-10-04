@@ -1,7 +1,7 @@
 name: blink-camera-relay
 services:
   relay:
-    image: ${BRIDGE_IMAGE:-ghcr.io/centauri/blink-camera-relay:edge}
+    image: ${BRIDGE_IMAGE:-ghcr.io/centauri/blink-camera-relay:latest}
     build:
       context: .
       target: runtime

@@ -9,9 +9,11 @@ MediaMTX and ONVIF adapter. Blink cloud pairing/login is still required.
 ## Unraid
 
 Use [the Unraid template](https://github.com/centauri/unraid-templates/blob/main/templates/blink-camera-relay.xml) with image
-`ghcr.io/centauri/blink-camera-relay:edge`. The container targets linux/amd64.
+`ghcr.io/centauri/blink-camera-relay:latest`. The container targets linux/amd64.
 The authoritative template is maintained in `centauri/unraid-templates`;
-Community Apps approval/listing has not been verified.
+the app is available in Community Apps. Existing installations using `edge` can
+change the container Repository to `ghcr.io/centauri/blink-camera-relay:latest`
+and apply the update, retaining the existing appdata mapping.
 
 - Network: host, for ONVIF multicast discovery.
 - Appdata: `/mnt/user/appdata/blink-camera-relay` mounted at `/data`.
@@ -78,7 +80,10 @@ then run `Start-Dashboard.ps1`. Native mode stays loopback-only.
 ## Builds and dependency sources
 
 GitHub Actions publishes just `ghcr.io/centauri/blink-camera-relay`.
-Main builds use `edge`; version tags publish `latest` and their version. Every
+Ordinary main builds use `edge`. To publish a release, increment `VERSION` and
+update `RELEASE-NOTES.md` in the same commit on main. After tests and container
+checks pass, CI publishes `latest` and `vX.Y.Z`, then creates the GitHub release.
+Version-tag builds also publish `latest` and their version. Every
 build also has a `sha-COMMIT` tag. Inline attestations are disabled to avoid
 GHCR's non-runnable `unknown/unknown` platform entries. ARM is not yet built.
 
