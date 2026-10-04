@@ -1,5 +1,10 @@
 # Source provenance and local changes
 
+The public IMMIS certificate in `bridge/certificates/blink-immis.pem` is Blink
+certificate data, not bridge-authored code. Its independently authenticated
+provenance and limited trust scope are recorded in `bridge/certificates/PROVENANCE.txt`.
+No APK, proprietary library, or private key is distributed.
+
 Upstream revisions inspected 2026-10-02. Local adaptations are maintained in this repository.
 
 | Component | Source/version | Treatment |

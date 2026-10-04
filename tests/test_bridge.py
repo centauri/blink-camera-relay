@@ -213,6 +213,40 @@ def test_live_session_metadata_does_not_log_secrets(monkeypatch, caplog):
     request.assert_awaited_once_with(camera.sync.blink, 2, 3, camera_type="mini")
 
 
+@pytest.mark.parametrize("host", ["192.0.2.1", "2001:db8::1"])
+def test_immis_app_trust_is_scoped_to_ip_endpoints(host):
+    import hashlib
+    import ssl
+    from immis import video_tls
+    ctx, name = video_tls(host)
+    assert name == "*.immedia-semi.com"
+    assert ctx.verify_mode == ssl.CERT_REQUIRED and ctx.check_hostname
+    assert [hashlib.sha256(c).hexdigest() for c in ctx.get_ca_certs(binary_form=True)] == [
+        "b1bfa71ba445f0de14172a1382db19e8848f93b850eb78bd13fdabc1be7e2481"]
+    dns_context, dns_name = video_tls("example.com")
+    assert dns_name == "example.com"
+    assert dns_context.verify_mode == ssl.CERT_REQUIRED and dns_context.check_hostname
+    assert len(dns_context.get_ca_certs()) > 1
+
+
+def test_immis_untrusted_handshake_never_sends_auth(monkeypatch):
+    import ssl
+    from unittest.mock import Mock
+    from urllib.parse import urlparse
+    import immis
+    monkeypatch.delenv("BLINK_IMMIS_CERT_SHA256", raising=False)
+    connect = AsyncMock(side_effect=ssl.SSLCertVerificationError("untrusted test certificate"))
+    monkeypatch.setattr(immis.asyncio, "open_connection", connect)
+    original = SimpleNamespace(camera=None, command_id=1, polling_interval=5,
+                               target=urlparse("immis://192.0.2.1:443/test"))
+    stream = ReliableStream(original)
+    stream.get_auth_header = Mock()
+    with pytest.raises(ssl.SSLCertVerificationError):
+        asyncio.run(stream.auth())
+    stream.get_auth_header.assert_not_called()
+    assert connect.call_args.kwargs["server_hostname"] == "*.immedia-semi.com"
+
+
 @pytest.mark.parametrize("previous,elapsed,expected", [(0,1,1),(4,59,5),(4,60,0),(10,361,0)])
 def test_healthy_session_eof_resets_backoff(previous, elapsed, expected):
     count = app.next_failure_count(previous, elapsed)

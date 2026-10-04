@@ -293,7 +293,7 @@ async def run(command):
                 # Avoid printing server URLs, tokens, or raw Blink API responses.
                 if isinstance(error, ssl.SSLCertVerificationError):
                     message = ("Blink video server certificate verification failed. "
-                               "Configure an independently verified BLINK_IMMIS_CERT_SHA256 fingerprint.")
+                               "Update the bridge's trusted certificates or configure an independently verified fingerprint override.")
                     LOG.warning(message)
                     telemetry.event(message)
                 LOG.warning("Live session ended after %.1f seconds (%s)",

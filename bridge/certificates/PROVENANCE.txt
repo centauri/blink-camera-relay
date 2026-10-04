@@ -1,0 +1,31 @@
+Blink IMMIS public trust certificate
+Verified 2026-10-04. This is public certificate data, not a private key.
+
+SHA-256: b1bfa71ba445f0de14172a1382db19e8848f93b850eb78bd13fdabc1be7e2481
+Subject/issuer: Amazon / Blink / *.immedia-semi.com
+Validity: 2016-12-31 through 2039-01-17. RSA 2048, SHA256-RSA, CA:TRUE.
+
+Independent provenance:
+The exact 1037-byte DER certificate is embedded at file offset 0x92914 in
+lib/arm64-v8a/libwalnut.so inside Blink's signed Android split APK.
+Google apksig 8.13.0 ApkVerifier verified both APKs using Signature Scheme v3,
+with no errors. Both APKs have the signer SHA-256:
+ca5b36d12fe84935dd7de849fe9f7fd318b8a413b95ec200b38e73f4fd0cdaf2
+This matches the production package com.immediasemi.android.blink listed at
+https://applinks.blink.com/.well-known/assetlinks.json over verified HTTPS.
+
+APK SHA-256 hashes (APKs and proprietary library are not distributed here):
+base.apk: 065dbe340d885899c71d05324a4244d9fca11d436d3e4177ca19d8a52db4bd33
+split_config.arm64_v8a.apk:
+69a39e6aac7936806cbe5b6f5ca286b9670f854a6a10460556dd4dd0b145215e
+
+Native walnut::mbedTLSSocket::connect configures required verification, parses
+DER certificates into a custom CA chain, and contains a hostname branch using
+the literal *.immedia-semi.com. A Python TLS 1.3 handshake to the observed IP
+endpoint succeeded with this trust anchor, that hostname, CERT_REQUIRED and
+check_hostname=True. Other regions have not been independently tested.
+
+Scope: only IP-addressed IMMIS video endpoints returned by the authenticated
+Blink API. Never install this certificate as a system-wide root. Normal DNS
+endpoints retain standard public-CA/hostname verification. Unknown, invalid or
+expired certificates must fail verification; replacements require review.

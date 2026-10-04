@@ -5,12 +5,34 @@ import ssl
 import os
 import hashlib
 import hmac
+import ipaddress
 import logging
+from pathlib import Path
 import time
 import telemetry
 
 from blinkpy.livestream import BlinkLiveStream
 from blinkpy import api
+
+
+def video_tls(hostname, pin=""):
+    """Trust Blink's app certificate only for IP-addressed IMMIS endpoints."""
+    if pin:
+        if len(pin) != 64 or any(c not in "0123456789abcdef" for c in pin):
+            raise ValueError("Invalid IMMIS certificate fingerprint")
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context, hostname
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        return ssl.create_default_context(), hostname
+    context = ssl.create_default_context(
+        cafile=str(Path(__file__).with_name("certificates") / "blink-immis.pem"))
+    # The signed Android app uses this logical service name for IP endpoints.
+    # Keep chain, signature, validity and hostname verification enabled.
+    return context, "*.immedia-semi.com"
 
 
 async def read_packet(reader, timeout=25, max_payload=8 * 1024 * 1024):
@@ -45,16 +67,11 @@ class ReliableStream(BlinkLiveStream):
         self.sample_bytes = 0
 
     async def auth(self):
-        context = ssl.create_default_context()
-        pin = os.getenv("BLINK_IMMIS_CERT_SHA256", "").lower().replace(":", "")
-        if pin:
-            if len(pin) != 64 or any(c not in "0123456789abcdef" for c in pin):
-                raise ValueError("Invalid IMMIS certificate fingerprint")
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
+        pin = os.getenv("BLINK_IMMIS_CERT_SHA256", "").strip().lower().replace(":", "")
+        context, server_hostname = video_tls(self.target.hostname, pin)
         self.target_reader, self.target_writer = await asyncio.wait_for(
             asyncio.open_connection(self.target.hostname, self.target.port,
-                                    ssl=context), self.timeout)
+                                    ssl=context, server_hostname=server_hostname), self.timeout)
         if pin:
             cert = self.target_writer.get_extra_info("ssl_object").getpeercert(binary_form=True)
             if not hmac.compare_digest(hashlib.sha256(cert).hexdigest(), pin):

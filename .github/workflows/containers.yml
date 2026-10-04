@@ -65,6 +65,7 @@ jobs:
       - name: Smoke test the integrated container
         run: |
           docker run --rm blink-relay-smoke:local python /app/bridge/app.py --help
+          docker run --rm -e BRIDGE_SOURCE_ROOT=/app -v "$PWD/tests/immis_tls_smoke.py:/tmp/immis_tls_smoke.py:ro" blink-relay-smoke:local python /tmp/immis_tls_smoke.py
           docker run --rm blink-relay-smoke:local node --version
           docker run --rm blink-relay-smoke:local mediamtx --version
           docker run --rm blink-relay-smoke:local ffmpeg -hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=15 -t 1 -c:v libx264 -threads 1 -x264-params sliced-threads=0:slices=1 -f null -
