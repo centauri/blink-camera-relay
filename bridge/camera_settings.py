@@ -1,6 +1,7 @@
 """Capability-gated camera settings. Cloud responses never reach the UI wholesale.
 
-Wire fields/enums are based on Blink's Android 55 OwlApi/UpdateOwlBody and
+Wire fields/enums are based on Blink's Android 55 OwlApi/UpdateOwlBody,
+CameraApi/CameraConfigInfo/UpdateCameraBody and
 the pinned BlinkPy API. Unknown fields remain unavailable, never generic writes.
 """
 import asyncio
@@ -51,7 +52,12 @@ READ_KEYS = set(SCHEMA) | set("""name updated_at fw_version fcc_id ic_id model_n
  chime_compatible video_recording_optional motion_regions_compatible privacy_zones_compatible
  spotlight_compatible light_status light_duration_options manual_light_duration_options
  snapshot_period_minutes_options extended_clip_recording_support zone_version motion_regions
- advanced_motion_regions""".split())
+advanced_motion_regions""".split())
+READ_KEYS.update("""alert_interval video_length clip_max_length lfr_sync_interval
+ wifi_strength lfr_strength battery_state battery_voltage battery_check_time temperature
+ temp_alarm_enable temp_min temp_max temp_adjust network_type night_vision_exposure
+ early_pir_compatible snapshot_compatible motion_alert valid_status_led_modes
+ video_quality_restricted""".split())
 
 
 def scalar(value):
@@ -66,6 +72,8 @@ def sanitize(raw):
         value = raw[key]
         if scalar(value) or (isinstance(value,list) and len(value)<=512 and all(type(v) in (int,bool) for v in value)):
             result[key] = value
+        elif key in ("valid_status_led_modes", "video_quality_restricted") and isinstance(value,list) and len(value)<=20 and all(isinstance(v,str) and scalar(v) for v in value):
+            result[key] = value
     modes = raw.get("detection_modes")
     if isinstance(modes,dict):
         result["detection_modes"] = {k:v for k,v in modes.items() if k in ("motion_detection","person_detection","vehicle_detection") and type(v) is bool}
@@ -78,7 +86,7 @@ def sanitize(raw):
 BRIGHTNESS_MAX = {"chickadee": 3, "hawk": 3, "superior": 10}
 
 
-def controls(values, product_type=None):
+def controls(values, product_type=None, family=None):
     rows=[]
     for key, spec in SCHEMA.items():
         if key not in values:
@@ -107,14 +115,25 @@ def controls(values, product_type=None):
         if choices is None and type(values[key]) is int and row["minimum"] is not None and row["maximum"] is not None:
             if not row["minimum"] <= values[key] <= row["maximum"]:
                 row.update(writable=False,note="Reported value is outside the mapped range; read-only until investigated.")
-        if product_type is not None and product_type not in ("owl","hawk","chickadee"):
+        if family == "camera":
+            # Shared UpdateCameraBody booleans and enum encodings are mapped;
+            # model-dependent numeric ranges remain read-only until established.
+            shared = {"enabled", "record_audio_enable", "early_notification",
+                      "early_termination", "video_recording_enable", "flip_video",
+                      "snapshot_enabled", "camera_location_indoor", "illuminator_enable"}
+            if key == "led_state" and values.get("valid_status_led_modes"):
+                row["choices"] = values["valid_status_led_modes"]
+                row["writable"] = values[key] in row["choices"]
+            elif key not in shared:
+                row.update(writable=False,note="Reported by the camera; write range or encoding is not yet mapped for this API family.")
+        elif product_type is not None and product_type not in ("owl","hawk","chickadee"):
             row.update(writable=False,note="Setting writes have not been mapped for this camera model.")
         rows.append(row)
     return rows
 
 
-def validate(values,key,value,product_type=None):
-    row=next((r for r in controls(values, product_type) if r["key"]==key),None)
+def validate(values,key,value,product_type=None,family=None):
+    row=next((r for r in controls(values, product_type, family) if r["key"]==key),None)
     if not row or not row["writable"]:
         raise SettingsError("This setting is unavailable or read-only on this camera.")
     if row["choices"] is not None:
@@ -128,27 +147,48 @@ def validate(values,key,value,product_type=None):
 def config_family(camera):
     if camera.camera_type=="mini":
         return "owl"  # Includes Mini 2K+ / chickadee; upstream only recognizes product owl.
-    if camera.product_type=="catalina":
-        return "catalina"
+    if camera.camera_type in ("", "camera"):
+        return "camera"
     raise SettingsError("Configuration endpoint is not mapped for this model. Camera metadata is still available.")
 
 
 async def read(camera):
-    result=await api.request_get_config(camera.sync.blink,camera.network_id,camera.camera_id,product_type=config_family(camera))
+    family=config_family(camera)
+    if family == "camera":
+        result=await api.http_get(camera.sync.blink, camera_config_url(camera))
+    else:
+        result=await api.request_get_config(camera.sync.blink,camera.network_id,camera.camera_id,product_type=family)
     if not isinstance(result,dict):
         raise SettingsError("Camera configuration could not be read.")
     if isinstance(result.get("camera"),list):
         result=result["camera"][0] if result["camera"] else {}
+    elif isinstance(result.get("camera"),dict):
+        result=result["camera"]
+    if not isinstance(result,dict):
+        raise SettingsError("Blink returned an invalid camera configuration.")
     values=sanitize(result)
+    if family == "camera":
+        for source, target in {"motion_alert":"enabled", "alert_interval":"retrigger_time",
+                               "video_length":"clip_length", "clip_max_length":"clip_length_max",
+                               "lfr_sync_interval":"volume_control"}.items():
+            if source in values:values[target]=values[source]
+        ir=values.get("illuminator_enable")
+        if type(ir) is int and ir in (0,1,2):values["illuminator_enable"]=("off","on","auto")[ir]
     if "enabled" not in values and "led_state" not in values:
         raise SettingsError("Blink returned no recognized camera configuration.")
-    return {"values":values,"controls":controls(values, camera.product_type),"updated":time.time(),"verification":None}
+    return {"values":values,"controls":controls(values, camera.product_type, family),"updated":time.time(),"verification":None}
+
+
+def camera_config_url(camera):
+    blink=camera.sync.blink
+    return f"{blink.urls.base_url}/api/v2/accounts/{blink.account_id}/networks/{camera.network_id}/cameras/{camera.camera_id}/config"
 
 
 async def read_zones(camera):
-    if camera.camera_type!="mini":return {}
+    family=config_family(camera)
     blink=camera.sync.blink
-    url=f"{blink.urls.base_url}/api/v2/accounts/{blink.account_id}/networks/{camera.network_id}/owls/{camera.camera_id}/zones"
+    collection="owls" if family=="owl" else "cameras"
+    url=f"{blink.urls.base_url}/api/v2/accounts/{blink.account_id}/networks/{camera.network_id}/{collection}/{camera.camera_id}/zones"
     raw=await api.http_get(blink,url)
     if not isinstance(raw,dict):return {}
     result={k:v for k,v in raw.items() if k in ("basic_zone_columns","basic_zone_rows","sub_zone_columns","sub_zone_rows","use_analytics_for_motion") and type(v) in (int,bool)}
@@ -162,11 +202,17 @@ async def read_zones(camera):
 
 async def write(camera, key, value, expected):
     before=await read(camera)
-    validate(before["values"],key,value,camera.product_type)
+    family=config_family(camera)
+    validate(before["values"],key,value,camera.product_type,family)
     if before["values"].get(key)!=expected or type(before["values"].get(key)) is not type(expected):
         raise SettingsError("This setting changed since it was loaded. Refresh settings before applying.")
-    response=await api.request_update_config(camera.sync.blink,camera.network_id,camera.camera_id,
-        product_type=config_family(camera),data=json.dumps({key:value}))
+    if family == "camera":
+        wire_key="motion_alert" if key=="enabled" else key
+        wire_value=("off","on","auto").index(value) if key=="illuminator_enable" else value
+        response=await api.http_post(camera.sync.blink,camera_config_url(camera),json=False,data=json.dumps({wire_key:wire_value}))
+    else:
+        response=await api.request_update_config(camera.sync.blink,camera.network_id,camera.camera_id,
+            product_type=family,data=json.dumps({key:value}))
     if response is None:
         raise SettingsError("Blink did not acknowledge the setting update.")
     status=response.status

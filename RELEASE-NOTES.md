@@ -1,21 +1,20 @@
-# v0.1.0
+# v0.1.1
 
-First versioned public release of Blink Camera Relay for Unraid.
+Fix missing configuration and capabilities for Outdoor 4 and other cameras
+using Blink's shared camera API. Previously, settings discovery was restricted
+to Mini-family devices and one older product identifier, even when video worked.
 
-- One container with web onboarding, camera controls, live preview, RTSP and ONVIF.
-- Automatic verification for supported Blink IMMIS servers using the public
-  certificate authenticated against Blink's signed Android app.
-- Persistent configuration and optional certificate fingerprint overrides.
-- Docker smoke tests cover packaged certificate trust and rejection of unrelated certificates.
+- Read shared camera configuration and zones by API family, without a product-name allowlist.
+- Display additional signal, battery, temperature, network and capability information.
+- Map shared motion-detection and infrared encodings separately from the Mini API.
+- Enable mapped shared Boolean settings; preserve read-back verification and leave
+  model-dependent ranges or unrecognized encodings read-only.
+- Preserve existing Mini-family settings behavior.
 
-Image: `ghcr.io/centauri/blink-camera-relay:v0.1.0`.
-The `latest` tag follows versioned releases; `edge` follows development builds.
+Validated live configuration reads against Mini 2K+ (chickadee) and Outdoor 4
+(sedona). Hardware settings were not modified during these checks. Automated
+tests cover family routing, sanitization and write encoding; other hardware
+models have not been independently tested. Doorbell configuration remains unmapped.
 
-Existing Unraid installations using `edge` can change Repository to
-`ghcr.io/centauri/blink-camera-relay:latest` and apply the update. Keep the existing
-appdata mapping. A manual `BLINK_IMMIS_CERT_SHA256` override is no longer needed
-for the supported certificate, but remains compatible.
-
-Blink cloud pairing and authentication remain required. Session renewal can cause
-video gaps. The published image supports linux/amd64; other regions' certificates
-and all camera models have not been independently tested.
+Update `ghcr.io/centauri/blink-camera-relay:latest`, or pin `:v0.1.1`.
+Keep your existing appdata mapping and refresh camera settings in the dashboard.

@@ -165,7 +165,7 @@ def test_cloud_exception_body_never_reaches_browser(manager, monkeypatch):
 def test_setting_failure_always_resumes_previous_stream(manager,monkeypatch):
     import camera_settings
     cam={"id":"test","name":"Test"}
-    manager.device=AsyncMock(return_value=object())
+    manager.device=AsyncMock(return_value=SimpleNamespace(camera_type="mini",product_type="chickadee"))
     manager.stop=AsyncMock();manager.start_camera=AsyncMock()
     monkeypatch.setattr(dashboard,'alive',lambda pid:True)
     monkeypatch.setattr(dashboard.asyncio,'sleep',AsyncMock())
@@ -179,7 +179,7 @@ def test_setting_failure_always_resumes_previous_stream(manager,monkeypatch):
 
 def test_invalid_setting_does_not_interrupt_video(manager,monkeypatch):
     import camera_settings
-    manager.device=AsyncMock(return_value=object());manager.stop=AsyncMock()
+    manager.device=AsyncMock(return_value=SimpleNamespace(camera_type="mini",product_type="chickadee"));manager.stop=AsyncMock()
     monkeypatch.setattr(camera_settings,'read',AsyncMock(return_value={"values":{"led_state":"off"}}))
     with pytest.raises(camera_settings.SettingsError):
         asyncio.run(manager.change_device({"id":"test"},{"key":"token","value":"secret"}))
@@ -188,7 +188,7 @@ def test_invalid_setting_does_not_interrupt_video(manager,monkeypatch):
 
 def test_invalid_brightness_does_not_interrupt_video(manager,monkeypatch):
     import camera_settings
-    manager.device=AsyncMock(return_value=SimpleNamespace(product_type="chickadee"))
+    manager.device=AsyncMock(return_value=SimpleNamespace(camera_type="mini",product_type="chickadee"))
     manager.stop=AsyncMock();manager.start_camera=AsyncMock()
     monkeypatch.setattr(dashboard,'alive',lambda pid:True)
     monkeypatch.setattr(camera_settings,'read',AsyncMock(return_value={"values":{"light_brightness":3,"spotlight_compatible":True}}))

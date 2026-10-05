@@ -359,7 +359,7 @@ class Manager:
         operation=data.get("operation","setting")
         if operation=="setting":
             fresh=await camera_settings.read(camera)
-            camera_settings.validate(fresh["values"],data.get("key"),data.get("value"),getattr(camera,"product_type",None))
+            camera_settings.validate(fresh["values"],data.get("key"),data.get("value"),getattr(camera,"product_type",None),camera_settings.config_family(camera))
         elif operation not in ("spotlight-on","spotlight-off","thumbnail","arm-system","disarm-system"):
             raise InputError("Unknown camera command.")
         if operation.startswith("spotlight"):

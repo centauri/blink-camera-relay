@@ -116,3 +116,38 @@ def test_missing_clip_limit_and_malformed_duration_are_read_only():
 def test_unmapped_models_and_out_of_range_values_are_read_only():
     assert not settings.controls({"volume_control":10},"chickadee")[0]["writable"]
     assert not settings.controls({"enabled":True},"catalina")[0]["writable"]
+
+
+def outdoor(model="sedona"):
+    return SimpleNamespace(camera_type="", product_type=model,network_id=1,camera_id=2,
+        sync=SimpleNamespace(blink=SimpleNamespace(account_id=3,urls=SimpleNamespace(base_url="https://example.invalid"))))
+
+
+@pytest.mark.parametrize("model", ["sedona", "catalina", "future-camera"])
+def test_shared_camera_family_reads_config_without_model_allowlist(monkeypatch,model):
+    get=AsyncMock(return_value={"camera":[{"enabled":True,"motion_alert":False,
+        "illuminator_enable":2,"record_audio_enable":True,"motion_sensitivity":6,
+        "wifi_strength":-66,"privacy_zones_compatible":True,"camera_key":"secret"}]})
+    monkeypatch.setattr(settings.api,"http_get",get)
+    result=asyncio.run(settings.read(outdoor(model)))
+    assert get.call_args.args[1].endswith("/api/v2/accounts/3/networks/1/cameras/2/config")
+    assert result["values"]["enabled"] is False
+    assert result["values"]["illuminator_enable"]=="auto"
+    assert result["values"]["wifi_strength"]==-66
+    assert "camera_key" not in result["values"]
+    rows={r["key"]:r for r in result["controls"]}
+    assert rows["record_audio_enable"]["writable"]
+    assert not rows["motion_sensitivity"]["writable"]
+
+
+@pytest.mark.parametrize("key,before,after,wire",[("enabled",True,False,{"motion_alert":False}),
+    ("illuminator_enable","auto","off",{"illuminator_enable":0})])
+def test_shared_camera_writes_use_family_encoding(monkeypatch,key,before,after,wire):
+    import json
+    monkeypatch.setattr(settings,"read",AsyncMock(side_effect=[
+        {"values":{key:before}},{"values":{key:after},"controls":[]}]))
+    post=AsyncMock(return_value=SimpleNamespace(status=200,release=lambda:None))
+    monkeypatch.setattr(settings.api,"http_post",post)
+    result=asyncio.run(settings.write(outdoor(),key,after,before))
+    assert json.loads(post.call_args.kwargs["data"])==wire
+    assert result["verification"]["result"]=="Read-back confirmed"
