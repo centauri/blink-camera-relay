@@ -6,7 +6,7 @@ const value=v=>v===null||v===undefined||v===''?'—':String(v);
 const duration=s=>s==null?'—':s<60?`${Math.max(0,Math.floor(s))}s`:`${Math.floor(s/60)}m ${Math.floor(s%60)}s`;
 const stamp=s=>s?new Date(s*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';
 function notice(text,error=false){$('notice').textContent=text;$('notice').className=error?'error':'';show('notice',true);}
-function tab(id){if(id!=='monitor'&&typeof stopPreview==='function')stopPreview();document.querySelectorAll('.tab').forEach(e=>e.hidden=e.id!==id);document.querySelectorAll('nav button').forEach(e=>e.classList.toggle('active',e.dataset.tab===id));}
+function tab(id){if(id!=='multiview'&&typeof stopMultiView==='function')stopMultiView();if(id!=='monitor'&&typeof stopPreview==='function')stopPreview();document.querySelectorAll('.tab').forEach(e=>e.hidden=e.id!==id);document.querySelectorAll('nav button').forEach(e=>e.classList.toggle('active',e.dataset.tab===id));}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
 function list(id,rows){const dl=$(id);dl.replaceChildren();for(const [key,val] of rows){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=key;dd.textContent=value(val);dl.append(dt,dd);}}
 function current(){return state?.cameras.find(c=>c.id===selected);}
@@ -43,6 +43,7 @@ function render(){
  document.querySelectorAll('button').forEach(b=>b.disabled=busy);
  if(c){$('start').disabled=busy||c.running;$('stop').disabled=busy||!c.running;$('restart').disabled=busy||!c.running;$('snapshot').disabled=busy||snapshotBusy||!c.publishing;$('discovery').disabled=busy;}
  if(typeof renderCameraSettings==='function')renderCameraSettings();
+ if(typeof renderMultiView==='function')renderMultiView();
 }
 $('refresh').onclick=()=>action('refresh',{},'Blink camera information refreshed.');
 $('login-form').onsubmit=async e=>{e.preventDefault();const f=e.target;const password=f.elements.password.value;f.elements.password.value='';await action('login',{email:f.elements.email.value,password},'Account step completed. Enter a verification code if requested.');};
