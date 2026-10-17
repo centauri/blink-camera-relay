@@ -6,6 +6,18 @@ Unofficial Blink live view to RTSP and ONVIF, with web onboarding and camera
 settings. **One container** includes the dashboard, BlinkPy/IMMIS worker, FFmpeg,
 MediaMTX and ONVIF adapter. Blink cloud pairing/login is still required.
 
+## Multi-view
+
+The **Multi-view** tab lets you select several configured cameras and launch a
+combined local live view. Start their bridge streams in Monitor first. Two
+cameras stack vertically, three show one above two, four use quadrants, and
+larger selections use a grid. Narrow screens stack the videos. Each camera has
+independent playback and renewal recovery. Stop view, switching tabs, or hiding
+the browser tab releases the players without stopping the bridge streams.
+Multi-view uses the existing authenticated HLS preview and opens no additional
+Blink live sessions. Multiple decoders increase browser CPU and network usage;
+Blink session gaps still apply.
+
 ## Unraid
 
 Use [the Unraid template](https://github.com/centauri/unraid-templates/blob/main/templates/blink-camera-relay.xml) with image

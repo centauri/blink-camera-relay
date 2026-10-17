@@ -22,8 +22,8 @@ jobs:
       - run: pip install -r requirements.lock ./vendor/blinkpy pytest
       - run: python scripts/check-release.py
       - run: python -m pytest tests/test_bridge.py tests/test_web.py tests/test_camera_settings.py tests/test_release.py tests/test_preview.py -q
-      - run: node --check bridge/static/app.js && node --check bridge/static/settings.js
-      - run: node --test tests/test_metadata.cjs
+      - run: node --check bridge/static/app.js && node --check bridge/static/settings.js && node --check bridge/static/multiview.js
+      - run: node --test tests/test_metadata.cjs tests/test_multiview.cjs
       - run: npm ci && npm audit --audit-level=high && npx tsc --noEmit
         working-directory: vendor/onvif
   images:
