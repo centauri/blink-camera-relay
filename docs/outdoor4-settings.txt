@@ -1,0 +1,45 @@
+Outdoor 4 (sedona) settings mapping, 2026-10-17
+
+Source: locally inspected signed Blink Android 55 app, whose APK hashes and
+signing identity are recorded in bridge/certificates/PROVENANCE.txt. No app
+source or binaries are distributed. Mappings are independently implemented.
+
+Reads/writes: CameraApi GET/POST
+/api/v2/accounts/{account}/networks/{network}/cameras/{camera}/config
+GsonModule uses LOWER_CASE_WITH_UNDERSCORES. UpdateCameraBody provides the wire
+fields and @SerializedName overrides. Single-field writes preserve other values.
+
+UI field -> wire field; allowed values; evidence:
+motion_sensitivity -> motion_sensitivity; integer 1-9;
+  DeviceSettingsMotionFragmentKt rangeTo(1,9), MotionViewModel saveSettings.
+retrigger_time -> alert_interval; integer 10-60 seconds;
+  DeviceSettingsMotionFragmentKt rangeTo(10,60), MotionViewModel saveSettings.
+clip_length -> video_length; integer 5 through camera clip_max_length (up to 60);
+  VideoPhotoViewModel slider conversion adds 5; CameraConfigInfo clip_max_length.
+volume_control -> lfr_sync_interval; integer 1-8;
+  AudioViewModel VOLUME_MIN/MAX and UpdateCameraBody @SerializedName.
+led_state -> led_state; off/recording, intersect reported modes when present;
+  LedState identifiers and Outdoor 4 options in Blink's official support article.
+illuminator_intensity -> illuminator_intensity; 1/4/7;
+  IrIntensity LOW/MEDIUM/HIGH and VideoPhotoViewModel saveSettings.
+video_quality -> video_quality; saver/standard/best;
+  VideoQuality identifiers. VideoQualityViewModel restrictions exclude best on
+  MCS2/MCS4 and standard on MCS2 only when listed as restricted by the camera.
+snapshot_period_minutes -> snapshot_period_minutes; camera-reported options only;
+  CameraConfigInfo snapshot_period_minutes_options and UpdateCameraBody setter.
+auto_update_thumbnail_enabled -> auto_update_thumbnail_enabled; Boolean;
+  VideoPhotoViewModel setter and Gson snake-case serialization.
+
+Official cross-checks:
+https://support.blinkforhome.com/en_GB/can-i-disable-the-blue-recording-led-on-the-camera
+https://support.blinkforhome.com/en_US/camera-settings/new-device-layout-settings
+
+Existing Boolean and IR mode mappings are retained. Image flip remains gated by
+flip_video_compatible. Reported spotlight brightness is not proof of an attached
+supported spotlight; spotlight controls stay gated. Diagnostics such as Wi-Fi,
+battery and firmware remain read-only. This change covers the existing settings
+rows, not arbitrary diagnostic writes, zone editing or temperature calibration.
+
+Verification: live read of Outdoor 4 configuration; request/read-back fixtures
+for every new writable field; invalid types/ranges and missing capability tests.
+No physical camera settings were changed during the mapping investigation.

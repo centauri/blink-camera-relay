@@ -137,7 +137,7 @@ def test_shared_camera_family_reads_config_without_model_allowlist(monkeypatch,m
     assert "camera_key" not in result["values"]
     rows={r["key"]:r for r in result["controls"]}
     assert rows["record_audio_enable"]["writable"]
-    assert not rows["motion_sensitivity"]["writable"]
+    assert rows["motion_sensitivity"]["writable"] is (model == "sedona")
 
 
 @pytest.mark.parametrize("key,before,after,wire",[("enabled",True,False,{"motion_alert":False}),
@@ -151,3 +151,58 @@ def test_shared_camera_writes_use_family_encoding(monkeypatch,key,before,after,w
     result=asyncio.run(settings.write(outdoor(),key,after,before))
     assert json.loads(post.call_args.kwargs["data"])==wire
     assert result["verification"]["result"]=="Read-back confirmed"
+
+
+@pytest.mark.parametrize("key,before,after,wire_key,extra", [
+    ("motion_sensitivity",3,9,"motion_sensitivity",{}),
+    ("retrigger_time",60,10,"alert_interval",{}),
+    ("clip_length",5,12,"video_length",{"clip_max_length":60}),
+    ("volume_control",8,1,"lfr_sync_interval",{}),
+    ("led_state","recording","off","led_state",{}),
+    ("illuminator_intensity",1,7,"illuminator_intensity",{}),
+    ("video_quality","standard","best","video_quality",{"network_type":"wifi","video_quality_restricted":[]}),
+    ("snapshot_period_minutes",60,120,"snapshot_period_minutes",{"snapshot_period_minutes_options":[60,120]}),
+    ("auto_update_thumbnail_enabled",True,False,"auto_update_thumbnail_enabled",{}),
+])
+def test_outdoor4_controls_encode_and_read_back(monkeypatch,key,before,after,wire_key,extra):
+    import json
+    first={"enabled":True,wire_key:before,**extra}
+    second={**first,wire_key:after}
+    get=AsyncMock(side_effect=[{"camera":[first]},{"camera":[second]}])
+    post=AsyncMock(return_value=SimpleNamespace(status=200,release=lambda:None))
+    monkeypatch.setattr(settings.api,"http_get",get)
+    monkeypatch.setattr(settings.api,"http_post",post)
+    result=asyncio.run(settings.write(outdoor(),key,after,before))
+    assert post.call_args.args[1].endswith("/cameras/2/config")
+    assert json.loads(post.call_args.kwargs["data"])=={wire_key:after}
+    assert result["verification"]["result"]=="Read-back confirmed"
+
+
+@pytest.mark.parametrize("key,value,invalid", [
+    ("motion_sensitivity",3,[0,10,True,3.5]),
+    ("retrigger_time",60,[9,61,False]),
+    ("clip_length",5,[4,61,False]),
+    ("volume_control",8,[0,9,True]),
+    ("led_state","recording",["on",1]),
+    ("illuminator_intensity",1,[0,2,True]),
+    ("video_quality","standard",["ultra",1]),
+    ("snapshot_period_minutes",60,[30,120]),
+    ("auto_update_thumbnail_enabled",True,[1,"false"]),
+])
+def test_outdoor4_rejects_invalid_values(key,value,invalid):
+    values={key:value,"clip_length_max":60,"snapshot_period_minutes_options":[60]}
+    for v in invalid:
+        with pytest.raises(settings.SettingsError):
+            settings.validate(values,key,v,"sedona","camera")
+
+
+def test_outdoor4_preserves_capability_gates_and_unknown_encodings():
+    rows={r["key"]:r for r in settings.controls({"light_brightness":5,"flip_video":False,
+        "clip_length":5,"led_state":"unexpected"},"sedona","camera")}
+    assert all(not r["writable"] for r in rows.values())
+    rows=settings.controls({"video_quality":"standard","network_type":"vo9_mcs_2",
+        "video_quality_restricted":["best","standard"]},"sedona","camera")
+    assert rows[0]["choices"]==["saver"] and not rows[0]["writable"]
+    rows=settings.controls({"clip_length":5,"clip_length_max":30},"sedona","camera")
+    assert rows[0]["choices"] is None and rows[0]["minimum"]==5 and rows[0]["maximum"]==30
+    assert rows[0]["writable"]

@@ -84,6 +84,13 @@ def sanitize(raw):
 
 
 BRIGHTNESS_MAX = {"chickadee": 3, "hawk": 3, "superior": 10}
+OUTDOOR4_WRITABLE = {
+    "motion_sensitivity", "retrigger_time", "clip_length", "volume_control",
+    "led_state", "illuminator_intensity", "video_quality",
+    "snapshot_period_minutes", "auto_update_thumbnail_enabled",
+}
+CAMERA_WIRE_KEYS = {"enabled":"motion_alert", "retrigger_time":"alert_interval",
+                    "clip_length":"video_length", "volume_control":"lfr_sync_interval"}
 
 
 def controls(values, product_type=None, family=None):
@@ -92,6 +99,7 @@ def controls(values, product_type=None, family=None):
         if key not in values:
             continue
         row=dict(spec,key=key,value=values[key],writable=True,evidence="API-mapped; not yet changed on this device")
+        outdoor4 = family == "camera" and product_type == "sedona"
         if spec["capability"] and values.get(spec["capability"]) is not True:
             row.update(writable=False,note="Camera has not reported this capability as supported.")
         if key == "light_brightness":
@@ -107,6 +115,23 @@ def controls(values, product_type=None, family=None):
         if key=="clip_length":
             maximum=values.get("clip_length_max")
             row["choices"]=[v for v in spec["choices"] if type(maximum) is int and v<=maximum]
+            if outdoor4 and type(maximum) is int and 5 <= maximum <= 60:
+                row.update(choices=None,minimum=5,maximum=maximum,
+                           note="Outdoor 4 clip length in seconds, limited by the camera. Early termination can end clips sooner.")
+        if outdoor4 and key=="led_state":
+            reported=values.get("valid_status_led_modes")
+            row["choices"]=[v for v in ("off","recording") if reported is None or (isinstance(reported,list) and v in reported)]
+        if outdoor4 and key=="video_quality":
+            restricted=values.get("video_quality_restricted",[])
+            if not isinstance(restricted,list):
+                restricted=[]
+                row.update(writable=False,note="Camera reported an unrecognized video-quality restriction format.")
+            network=values.get("network_type")
+            row["choices"]=[v for v in spec["choices"] if not (
+                v in restricted and ((v=="best" and network in ("vo9_mcs_2","vo9_mcs_4")) or
+                                     (v=="standard" and network=="vo9_mcs_2")))]
+        if outdoor4 and key in ("snapshot_period_minutes","auto_update_thumbnail_enabled"):
+            row["note"]="Blink cloud photo feature; availability may require a subscription or trial. Read-back checked after Apply."
         choices=row["choices"]
         if choices is not None and not any(type(values[key]) is type(v) and values[key]==v for v in choices):
             row.update(writable=False,note="Current value uses an unrecognized encoding; read-only until mapped.")
@@ -121,7 +146,9 @@ def controls(values, product_type=None, family=None):
             shared = {"enabled", "record_audio_enable", "early_notification",
                       "early_termination", "video_recording_enable", "flip_video",
                       "snapshot_enabled", "camera_location_indoor", "illuminator_enable"}
-            if key == "led_state" and values.get("valid_status_led_modes"):
+            if outdoor4:
+                shared |= OUTDOOR4_WRITABLE
+            if not outdoor4 and key == "led_state" and values.get("valid_status_led_modes"):
                 row["choices"] = values["valid_status_led_modes"]
                 row["writable"] = values[key] in row["choices"]
             elif key not in shared:
@@ -207,7 +234,7 @@ async def write(camera, key, value, expected):
     if before["values"].get(key)!=expected or type(before["values"].get(key)) is not type(expected):
         raise SettingsError("This setting changed since it was loaded. Refresh settings before applying.")
     if family == "camera":
-        wire_key="motion_alert" if key=="enabled" else key
+        wire_key=CAMERA_WIRE_KEYS.get(key,key)
         wire_value=("off","on","auto").index(value) if key=="illuminator_enable" else value
         response=await api.http_post(camera.sync.blink,camera_config_url(camera),json=False,data=json.dumps({wire_key:wire_value}))
     else:
