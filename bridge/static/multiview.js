@@ -41,13 +41,13 @@ class MultiViewPlayer {
 }
 function multiViewColumns(count){return count<=2?1:Math.ceil(Math.sqrt(count));}
 if(typeof module!=='undefined')module.exports={MultiViewPlayer,multiViewColumns};
-if(typeof document!=='undefined'){
+if(typeof document!=='undefined'&&!document.documentElement?.hasAttribute('data-wall')){
  let players=new Map(),generation=0,signature='';
  const choices=new Set();
  window.stopMultiView=(message='View stopped. Bridge streams keep running.')=>{
   generation++;for(const player of players.values())player.stop();players.clear();
   $('multiview-grid').replaceChildren();$('multiview-status').textContent=message;
-  $('multiview-stop').disabled=true;$('multiview-start').disabled=busy||!choices.size;
+  $('multiview-stop').disabled=true;$('multiview-start').disabled=busy||!choices.size;$('multiview-window').disabled=busy||!choices.size;
  };
  window.renderMultiView=()=>{
   const cameras=state?.cameras||[],ids=new Set(cameras.map(c=>c.id));
@@ -59,14 +59,14 @@ if(typeof document!=='undefined'){
     const label=document.createElement('label');label.className='check';
     const input=document.createElement('input');input.type='checkbox';input.checked=choices.has(camera.id);
     input.onchange=()=>{if(input.checked)choices.add(camera.id);else choices.delete(camera.id);
-     $('multiview-start').disabled=busy||!choices.size;
+     $('multiview-start').disabled=busy||!choices.size;$('multiview-window').disabled=busy||!choices.size;
     };
     label.append(input,document.createTextNode(`${camera.name} · ${camera.running?camera.phase:'stopped'}`));
     $('multiview-choices').append(label);
    }
    $('multiview-empty').hidden=cameras.length>0;
   }
-  $('multiview-start').disabled=busy||!choices.size;
+  $('multiview-start').disabled=busy||!choices.size;$('multiview-window').disabled=busy||!choices.size;
   $('multiview-stop').disabled=!players.size;
  };
  $('multiview-start').onclick=async()=>{
@@ -88,6 +88,11 @@ if(typeof document!=='undefined'){
      headers:{'Content-Type':'application/json','X-CSRF-Token':state.csrf},body:JSON.stringify({id})})});
    players.set(camera.id,player);await player.start();
   }
+ };
+ $('multiview-window').onclick=()=>{
+  if(!choices.size)return;
+  const query=new URLSearchParams();for(const id of choices)query.append('camera',id);
+  window.open('/static/wall.html?'+query.toString(),'_blank','popup,width=1280,height=720,noopener,noreferrer');
  };
  $('multiview-stop').onclick=()=>stopMultiView();
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopMultiView('View stopped while this tab is hidden. Launch to resume.');});

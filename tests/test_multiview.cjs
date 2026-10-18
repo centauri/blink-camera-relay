@@ -61,13 +61,15 @@ test('selection survives polling and stopping clears tiles without stopping brid
  const element=()=>({children:[],style:{setProperty(){}},dataset:{},append(...nodes){this.children.push(...nodes);},replaceChildren(){this.children=[];},setAttribute(){},addEventListener(){},pause(){},removeAttribute(){},load(){}});
  const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
  const document={createElement:element,createTextNode:text=>({text}),addEventListener:(key,fn)=>events[key]=fn};
- const window={addEventListener(){}};
+ const opened=[];const window={addEventListener(){},open(...args){opened.push(args);}};
  const requests=[];
- const context={document,window,$:get,state:{csrf:'demo',cameras:[{id:'one',name:'One',running:true,phase:'streaming'},{id:'two',name:'Two',running:true,phase:'streaming'}]},busy:false,AbortController,setTimeout:()=>1,clearTimeout(){},fetch:async(url,options)=>{requests.push([url,JSON.parse(options.body)]);return {ok:false};}};
+ const context={document,window,$:get,state:{csrf:'demo',cameras:[{id:'one',name:'One',running:true,phase:'streaming'},{id:'two',name:'Two',running:true,phase:'streaming'}]},busy:false,AbortController,URLSearchParams,setTimeout:()=>1,clearTimeout(){},fetch:async(url,options)=>{requests.push([url,JSON.parse(options.body)]);return {ok:false};}};
  vm.createContext(context);vm.runInContext(fs.readFileSync(require.resolve('../bridge/static/multiview.js'),'utf8'),context);
  context.stopMultiView=window.stopMultiView;
  window.renderMultiView();
  for(const label of get('multiview-choices').children){label.children[0].checked=true;label.children[0].onchange();}
+ get('multiview-window').onclick();
+ assert.deepEqual(opened,[['/static/wall.html?camera=one&camera=two','_blank','popup,width=1280,height=720,noopener,noreferrer']]);
  await get('multiview-start').onclick();
  assert.equal(get('multiview-grid').children.length,2);
  assert.equal(get('multiview-grid').dataset.count,'2');
@@ -79,4 +81,28 @@ test('selection survives polling and stopping clears tiles without stopping brid
  assert.equal(get('multiview-grid').children.length,0);
  assert.equal(get('multiview-stop').disabled,true);
  assert.equal(requests.length,2);
+});
+
+test('viewing window selects only requested cameras, refreshes CSRF and cleans up on close',async()=>{
+ const vm=require('node:vm'),fs=require('node:fs'),elements=new Map(),events={},players=[],requests=[];
+ const element=()=>({children:[],dataset:{},style:{setProperty(){}},append(...nodes){this.children.push(...nodes);},replaceChildren(){this.children=[];},setAttribute(){},addEventListener(){}});
+ const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
+ class Player{constructor(video,status,id,deps){Object.assign(this,{id,deps});players.push(this);}async start(){await this.deps.prepare(this.id);}stop(){this.stopped=true;}}
+ const document={getElementById:get,createElement:element,body:{classList:{add(){},remove(){}}},addEventListener(){}};
+ let token=0;
+ const context={document,location:{search:'?camera=two&camera=two&camera=missing'},URLSearchParams,MultiViewPlayer:Player,multiViewColumns,window:{addEventListener:(k,fn)=>events[k]=fn},setTimeout:()=>1,clearTimeout(){},fetch:async(url,options)=>{
+  requests.push([url,options]);return {ok:true,json:async()=>({csrf:`token-${++token}`,cameras:[{id:'one',name:'One'},{id:'two',name:'Two'}]})};
+ }};
+ vm.createContext(context);vm.runInContext(fs.readFileSync(require.resolve('../bridge/static/wall.js'),'utf8'),context);await new Promise(setImmediate);
+ assert.deepEqual(players.map(p=>p.id),['two']);assert.equal(get('wall').children.length,1);
+ const post=requests.find(([url])=>url==='/api/preview-start')[1];
+ assert.equal(post.headers['X-CSRF-Token'],'token-2');assert.equal(JSON.parse(post.body).id,'two');
+ events.pagehide();assert.equal(players[0].stopped,true);assert.equal(get('wall').children.length,0);
+});
+
+test('viewing window does not initialize dashboard UI',()=>{
+ const vm=require('node:vm'),fs=require('node:fs');
+ const context={document:{documentElement:{hasAttribute:()=>true}}};
+ vm.createContext(context);
+ assert.doesNotThrow(()=>vm.runInContext(fs.readFileSync(require.resolve('../bridge/static/multiview.js'),'utf8'),context));
 });

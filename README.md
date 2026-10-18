@@ -18,6 +18,13 @@ Multi-view uses the existing authenticated HLS preview and opens no additional
 Blink live sessions. Multiple decoders increase browser CPU and network usage;
 Blink session gaps still apply.
 
+**Open viewing window** opens just the selected cameras on a black background,
+with no dashboard navigation or settings. Use the disappearing Fullscreen button
+or double-click a camera to fill a TV or monitor. The browser may open a tab
+instead of a window, depending on its settings. The view continues independently
+of the dashboard and reconnects after stream renewals. Close it to stop playback;
+the bridge streams keep running. Normal dashboard authentication still applies.
+
 ## Unraid
 
 Use [the Unraid template](https://github.com/centauri/unraid-templates/blob/main/templates/blink-camera-relay.xml) with image
