@@ -21,7 +21,7 @@ jobs:
           python-version: '3.12'
       - run: pip install -r requirements.lock ./vendor/blinkpy pytest
       - run: python scripts/check-release.py
-      - run: python -m pytest tests/test_bridge.py tests/test_web.py tests/test_camera_settings.py tests/test_release.py tests/test_preview.py -q
+      - run: python -m pytest tests/test_bridge.py tests/test_web.py tests/test_camera_settings.py tests/test_release.py tests/test_preview.py tests/test_registry.py -q
       - run: node --check bridge/static/app.js && node --check bridge/static/settings.js && node --check bridge/static/multiview.js && node --check bridge/static/wall.js
       - run: node --test tests/test_metadata.cjs tests/test_multiview.cjs
       - run: npm ci && npm audit --audit-level=high && npx tsc --noEmit
@@ -114,7 +114,8 @@ jobs:
           context: .
           target: runtime
           platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
+          # Older Unraid update checkers do not accept single-image OCI manifests.
+          outputs: type=image,oci-mediatypes=false,push=${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.names.outputs.base }}:${{ steps.names.outputs.channel }}
             ${{ steps.names.outputs.base }}:sha-${{ github.sha }}
@@ -126,6 +127,13 @@ jobs:
             io.blink-camera-relay.sources=https://github.com/${{ github.repository }}/releases/tag/sources-${{ github.sha }}
           provenance: false
           sbom: false
+      - name: Verify Unraid registry update detection
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE_REPOSITORY: ${{ github.repository }}
+          IMAGE_CHANNEL: ${{ steps.names.outputs.channel }}
+          IMAGE_VERSION: ${{ steps.names.outputs.version }}
+        run: python scripts/check-registry.py
       - name: Publish versioned release after the image
         if: github.event_name != 'pull_request' && steps.names.outputs.version != ''
         env:
