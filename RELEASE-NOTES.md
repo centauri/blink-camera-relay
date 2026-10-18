@@ -1,21 +1,17 @@
-# v0.1.3
+# v0.1.4
 
-Watch several cameras together in the new Multi-view tab (issue #1, PR #2).
+Open a camera-only viewing window for TVs and fullscreen monitors from Multi-view.
 
-- Select cameras and launch a combined local live view.
-- Two cameras stack vertically; three show one above two; four use quadrants.
-  Larger selections use a grid, and narrow screens stack the videos.
-- Each camera has independent playback status and session-renewal retries.
-- Stopping the view, switching dashboard tabs, or hiding the browser tab releases
-  the players without stopping the bridge streams.
+- Select cameras and click Open viewing window.
+- Videos fill a black background without dashboard navigation or settings.
+- A Fullscreen button fades after inactivity; double-click a camera to toggle fullscreen.
+- The viewing window runs independently of the dashboard and retries stream renewals.
+- Closing the window releases playback without stopping bridge streams.
 
-Start the camera streams in Monitor first. Multi-view reuses the local HLS
-streams and opens no additional Blink live sessions. Blink renewal gaps still
-apply, and viewing several streams increases browser CPU and network usage.
+Uses existing authenticated local HLS streams without additional Blink live sessions.
+Start the streams in Monitor first. Browser settings may open a tab instead of a
+separate window. Fullscreen support varies by browser; browser fullscreen can also
+be used. Blink renewal gaps still apply.
 
-Automated tests and integrated container smoke tests passed for the feature.
-An isolated Chrome demo verified selection, layout, retry status and cleanup;
-simultaneous playback from physical cameras still needs field verification.
-
-Update ghcr.io/centauri/blink-camera-relay:latest (or pin :v0.1.3), keep appdata,
-and refresh the dashboard to load the new Multi-view tab.
+Update ghcr.io/centauri/blink-camera-relay:latest (or pin :v0.1.4), retain appdata,
+and refresh the dashboard. The release Source code ZIP contains the matching source.
