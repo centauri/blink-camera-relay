@@ -48,13 +48,18 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             channel=latest
             version="$GITHUB_REF_NAME"
-          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]] && git diff-tree --no-commit-id --name-only -r HEAD | grep -qx VERSION; then
-            version="v$(tr -d '\r\n' < VERSION)"
-            [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release version'; exit 1; }
-            if [[ -n "$(git ls-remote --tags origin "refs/tags/$version")" ]]; then
-              echo 'Version already released; increment VERSION'; exit 1
+          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            candidate="v$(tr -d '\r\n' < VERSION)"
+            [[ "$candidate" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release version'; exit 1; }
+            # A merge commit has no default diff-tree output. Release an unpublished
+            # VERSION regardless of merge style; later pushes use edge.
+            released=$(git ls-remote --tags origin "refs/tags/$candidate")
+            if [[ -z "$released" ]]; then
+              version="$candidate"
+              channel=latest
+            else
+              channel=edge
             fi
-            channel=latest
           else
             channel=edge
           fi
